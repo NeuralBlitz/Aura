@@ -1,0 +1,209 @@
+
+import React, { useState, useEffect, useRef } from 'react';
+import TopBar from './components/TopBar';
+import InputArea from './components/InputArea';
+import ChatMessage from './components/ChatMessage';
+import StartDashboard from './components/views/StartDashboard';
+import ProfilePanel from './components/ProfilePanel';
+import ArtifactCanvas from './components/ArtifactCanvas';
+import BottomNav from './components/BottomNav';
+import ForgeView from './components/views/ForgeView';
+import SearchView from './components/views/SearchView';
+import Marketplace from './components/ModuleRegistry';
+import NexusView from './components/views/NexusView';
+import ProjectsView from './components/views/ProjectsView';
+import NotesView from './components/views/NotesView';
+import NewsView from './components/views/NewsView';
+import ForumsView from './components/views/ForumsView';
+import ScriptoriumView from './components/views/ScriptoriumView';
+import ChangelogView from './components/views/ChangelogView';
+import FocusView from './components/views/FocusView';
+import NetworkView from './components/views/NetworkView';
+import UtilityView from './components/views/UtilityView';
+import TranslateView from './components/views/TranslateView';
+import HealthView from './components/views/HealthView';
+import MarketView from './components/views/MarketView';
+import SonicView from './components/views/SonicView';
+import WeatherView from './components/views/WeatherView';
+import CalendarView from './components/views/CalendarView';
+import BrowserView from './components/views/BrowserView';
+import WebhookView from './components/views/WebhookView';
+import DreamStreamView from './components/views/DreamStreamView';
+// New Standalone Modules
+import CipherView from './components/views/CipherView';
+import VoidView from './components/views/VoidView';
+import CapsuleView from './components/views/CapsuleView';
+import BioLinkView from './components/views/BioLinkView';
+import EchoView from './components/views/EchoView';
+import ZenithView from './components/views/ZenithView';
+import SignalView from './components/views/SignalView';
+import StyleView from './components/views/StyleView';
+import LoomView from './components/views/LoomView';
+
+import FloatingChat from './components/FloatingChat';
+import AuraSplash from './components/AuraSplash';
+import OnboardingFlow from './components/OnboardingFlow';
+import GlobalCommandPalette from './components/GlobalCommandPalette';
+import { Message, ModelType, Artifact, UserPreferences, UserProfile, Tab, MorphingState, Thread } from './types';
+import { sendMessageStreamToGemini } from './services/geminiService';
+import { telemetryService, TelemetryData } from './services/telemetryService';
+import { haptic, HapticPattern } from './services/hapticService';
+import { storageService } from './services/storageService';
+
+export default function App() {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [currentThreadId, setCurrentThreadId] = useState<string>('main');
+  const [isLoading, setIsLoading] = useState(false);
+  const [currentModel, setCurrentModel] = useState<ModelType>(ModelType.GEMINI_FLASH);
+  const [activeTab, setActiveTab] = useState<Tab>('home');
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [activeArtifact, setActiveArtifact] = useState<Artifact | null>(null);
+  const [isArtifactOpen, setIsArtifactOpen] = useState(false);
+  const [telemetry, setTelemetry] = useState<TelemetryData | null>(null);
+  const [morphingState, setMorphingState] = useState<MorphingState>('standby');
+  const [showSplash, setShowSplash] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  const [userProfile, setUserProfile] = useState<UserProfile>({
+    username: 'Explorer', avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=Aura', bio: 'AURA OS v9.0 Architect', level: 9, exp: 14200
+  });
+
+  const [preferences, setPreferences] = useState<UserPreferences>({
+    defaultModel: ModelType.GEMINI_FLASH, theme: 'dark', accentColor: 'blue',
+    notificationsEnabled: true, autoOpenArtifacts: true, installedModules: ['news', 'forums', 'focus', 'network', 'utility', 'translate', 'health', 'projects', 'notes', 'market', 'sonic', 'dreamstream', 'cipher', 'biolink'], isVaultEnabled: false
+  });
+
+  useEffect(() => { 
+    storageService.init();
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsCommandPaletteOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    telemetryService.subscribe(setTelemetry);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'home') bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isLoading, activeTab]);
+
+  const handleSend = async (text: string, attachment?: string) => {
+    haptic.trigger(HapticPattern.UI_INTERACT);
+    const userMsg: Message = { id: Date.now().toString(), role: 'user', text, imageUrl: attachment, timestamp: new Date(), threadId: currentThreadId };
+    setMessages(prev => [...prev, userMsg]);
+    setIsLoading(true);
+
+    const assistantId = (Date.now() + 1).toString();
+    setMessages(prev => [...prev, { id: assistantId, role: 'model', text: '', timestamp: new Date(), isStreaming: true, threadId: currentThreadId }]);
+
+    try {
+      const stream = sendMessageStreamToGemini(messages.concat(userMsg), text, currentModel, attachment);
+      for await (const chunk of stream) {
+        setMessages(prev => prev.map(m => m.id === assistantId ? { 
+          ...m, text: chunk.text, 
+          artifacts: chunk.artifacts, 
+          widgets: chunk.widgets, 
+          thinkingSteps: chunk.thinking,
+          groundingMetadata: chunk.grounding 
+        } : m));
+      }
+      haptic.trigger(HapticPattern.SUCCESS);
+    } catch (e: any) {
+      haptic.trigger(HapticPattern.ERROR);
+      setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, text: e.message, isError: true, isStreaming: false } : m));
+    } finally { setIsLoading(false); }
+  };
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'nexus': return <NexusView preferences={preferences} userProfile={userProfile} onLaunch={(id: any) => setActiveTab(id)} />;
+      case 'news': return <NewsView />;
+      case 'translate': return <TranslateView />;
+      case 'health': return <HealthView />;
+      case 'forums': return <ForumsView />;
+      case 'projects': return <ProjectsView />;
+      case 'notes': return <NotesView />;
+      case 'scriptorium': return <ScriptoriumView />;
+      case 'changelog': return <ChangelogView />;
+      case 'focus': return <FocusView />;
+      case 'network': return <NetworkView />;
+      case 'utility': return <UtilityView />;
+      case 'market': return <MarketView />;
+      case 'sonic': return <SonicView />;
+      case 'weather': return <WeatherView />;
+      case 'calendar': return <CalendarView />;
+      case 'browser': return <BrowserView />;
+      case 'webhook': return <WebhookView />;
+      case 'dreamstream': return <DreamStreamView />;
+      // Independent Apps
+      case 'cipher': return <CipherView />;
+      case 'void': return <VoidView />;
+      case 'capsule': return <CapsuleView />;
+      case 'biolink': return <BioLinkView />;
+      case 'echo': return <EchoView />;
+      case 'zenith': return <ZenithView />;
+      case 'signal': return <SignalView />;
+      case 'style': return <StyleView />;
+      case 'loom': return <LoomView />;
+      
+      case 'search': return <SearchView onNavigateToScriptorium={() => setActiveTab('scriptorium')} />;
+      case 'forge': return <ForgeView initialCode={null} />;
+      case 'marketplace': return <Marketplace installedIds={preferences.installedModules} onInstall={(id) => setPreferences(p => ({ ...p, installedModules: [...p.installedModules, id] }))} onLaunch={(id) => setActiveTab(id as Tab)} />;
+      default:
+        return messages.length === 0 ? (
+          <StartDashboard onAction={(p, m, t) => { if (m) setCurrentModel(m as ModelType); handleSend(p); }} userParams={userProfile} />
+        ) : (
+          <div className="pb-8">
+            {messages.map((msg, i) => (
+              <ChatMessage key={msg.id} message={msg} isLast={i === messages.length - 1} onOpenArtifact={(art) => { setActiveArtifact(art); setIsArtifactOpen(true); }} />
+            ))}
+            <div ref={bottomRef} className="h-4" />
+          </div>
+        );
+    }
+  };
+
+  if (showSplash) return <AuraSplash onComplete={() => setShowSplash(false)} />;
+
+  return (
+    <div className="flex flex-col h-[100dvh] bg-black overflow-hidden select-none relative transition-all duration-1000">
+      {showOnboarding && <OnboardingFlow onComplete={() => setShowOnboarding(false)} />}
+      <div className="absolute inset-0 bg-aurora pointer-events-none" />
+      <TopBar currentModel={currentModel} onModelChange={setCurrentModel} onNewChat={() => { setMessages([]); setActiveTab('home'); }} onOpenProfile={() => setIsProfileOpen(true)} theme={preferences.theme} userProfile={userProfile} />
+      <ArtifactCanvas artifact={activeArtifact} isOpen={isArtifactOpen} onClose={() => setIsArtifactOpen(false)} />
+      <GlobalCommandPalette isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} onNavigate={setActiveTab} onExecute={handleSend} />
+      <ProfilePanel 
+        isOpen={isProfileOpen} 
+        onClose={() => setIsProfileOpen(false)} 
+        profile={userProfile} 
+        onUpdateProfile={setUserProfile} 
+        preferences={preferences} 
+        onUpdatePreferences={setPreferences} 
+        onClearHistory={() => setMessages([])} 
+        messages={messages} 
+        vaultStatus="uninitialized" 
+        onVaultStatusChange={() => {}} 
+        hasPlatformKey={true} 
+        onSelectKey={() => {}} 
+        onLaunchTool={(view) => setActiveTab(view)} 
+      />
+      <main className={`flex-1 overflow-y-auto pt-16 pb-48 no-scrollbar scroll-smooth relative z-10 ${activeTab === 'home' ? 'bg-black' : 'bg-[#050505]'}`}>
+        {renderContent()}
+      </main>
+      {activeTab === 'home' && (
+        <div className="fixed bottom-16 left-0 right-0 z-[70] px-6 pointer-events-none">
+          <div className="max-w-2xl mx-auto pointer-events-auto">
+            <InputArea onSend={(text, attach) => handleSend(text, attach)} isLoading={isLoading} />
+          </div>
+        </div>
+      )}
+      <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+      <FloatingChat />
+    </div>
+  );
+}

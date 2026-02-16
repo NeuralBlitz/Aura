@@ -1,0 +1,149 @@
+
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="https://upload.wikimedia.org/wikipedia/commons/8/8a/Google_Gemini_logo.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>Aura OS v7.0</title>
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              background: '#000000',
+              surface: '#050505',
+              surfaceLight: '#0A0A0A',
+              primary: '#2563eb',
+              accent: '#3b82f6',
+              border: 'rgba(255, 255, 255, 0.05)',
+            },
+            animation: {
+              'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'slide-up': 'slide-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+              'fade-in': 'fade-in 0.4s ease-out forwards',
+              'scale-in': 'scale-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+              'glow': 'glow 3s infinite alternate',
+              'marquee': 'marquee 25s linear infinite',
+              'spin-slow': 'spin 12s linear infinite',
+            },
+            keyframes: {
+              'slide-up': {
+                '0%': { transform: 'translateY(30px)', opacity: '0' },
+                '100%': { transform: 'translateY(0)', opacity: '1' },
+              },
+              'fade-in': {
+                '0%': { opacity: '0' },
+                '100%': { opacity: '1' },
+              },
+              'scale-in': {
+                '0%': { transform: 'scale(0.9)', opacity: '0' },
+                '100%': { transform: 'scale(1)', opacity: '1' },
+              },
+              'glow': {
+                '0%': { boxShadow: '0 0 5px rgba(59, 130, 246, 0.2)' },
+                '100%': { boxShadow: '0 0 20px rgba(59, 130, 246, 0.6)' },
+              },
+              'marquee': {
+                '0%': { transform: 'translateX(0%)' },
+                '100%': { transform: 'translateX(-100%)' }
+              }
+            }
+          },
+        },
+      }
+    </script>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap');
+      
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #000000;
+        color: #ffffff;
+        overscroll-behavior: none;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      /* Base Glass */
+      .glass-morphic {
+        background: rgba(10, 10, 10, 0.6);
+        backdrop-filter: blur(40px);
+        -webkit-backdrop-filter: blur(40px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+      }
+
+      /* Metallic/Glossy Card Effect */
+      .metallic-card {
+        background: linear-gradient(145deg, rgba(255, 255, 255, 0.03) 0%, rgba(0, 0, 0, 0.2) 100%);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-top: 1px solid rgba(255, 255, 255, 0.15);
+        border-left: 1px solid rgba(255, 255, 255, 0.08);
+        border-right: 1px solid rgba(0, 0, 0, 0.2);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.4);
+        box-shadow: 
+          0 10px 30px -10px rgba(0, 0, 0, 0.5),
+          inset 0 0 20px rgba(255, 255, 255, 0.01);
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+
+      .metallic-card:hover {
+        border-top-color: rgba(255, 255, 255, 0.3);
+        transform: translateY(-4px) scale(1.01);
+        box-shadow: 
+          0 20px 40px -10px rgba(0, 0, 0, 0.6),
+          0 0 20px rgba(255, 255, 255, 0.03),
+          inset 0 0 30px rgba(255, 255, 255, 0.02);
+      }
+
+      /* Specific Color Accents for Metallic Cards */
+      .metallic-card.blue:hover { border-top-color: rgba(59, 130, 246, 0.5); box-shadow: 0 20px 40px -10px rgba(0,0,0,0.6), 0 0 20px rgba(59, 130, 246, 0.1); }
+      .metallic-card.purple:hover { border-top-color: rgba(168, 85, 247, 0.5); box-shadow: 0 20px 40px -10px rgba(0,0,0,0.6), 0 0 20px rgba(168, 85, 247, 0.1); }
+      .metallic-card.emerald:hover { border-top-color: rgba(16, 185, 129, 0.5); box-shadow: 0 20px 40px -10px rgba(0,0,0,0.6), 0 0 20px rgba(16, 185, 129, 0.1); }
+      .metallic-card.amber:hover { border-top-color: rgba(245, 158, 11, 0.5); box-shadow: 0 20px 40px -10px rgba(0,0,0,0.6), 0 0 20px rgba(245, 158, 11, 0.1); }
+      .metallic-card.red:hover { border-top-color: rgba(239, 68, 68, 0.5); box-shadow: 0 20px 40px -10px rgba(0,0,0,0.6), 0 0 20px rgba(239, 68, 68, 0.1); }
+      .metallic-card.pink:hover { border-top-color: rgba(236, 72, 153, 0.5); box-shadow: 0 20px 40px -10px rgba(0,0,0,0.6), 0 0 20px rgba(236, 72, 153, 0.1); }
+      .metallic-card.cyan:hover { border-top-color: rgba(6, 182, 212, 0.5); box-shadow: 0 20px 40px -10px rgba(0,0,0,0.6), 0 0 20px rgba(6, 182, 212, 0.1); }
+
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      
+      .prose {
+        max-width: none;
+        --tw-prose-body: #e5e5e5;
+        --tw-prose-headings: #ffffff;
+        --tw-prose-links: #3b82f6;
+        --tw-prose-code: #60a5fa;
+      }
+
+      /* Animated gradients for high-end feel */
+      .bg-aurora {
+        background: radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.08) 0%, rgba(0, 0, 0, 0) 100%);
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react-markdown": "https://esm.sh/react-markdown@^10.1.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
+    "recharts": "https://esm.sh/recharts@^3.7.0",
+    "@google/genai": "https://esm.sh/@google/genai@^1.40.0",
+    "remark-math": "https://esm.sh/remark-math@^6.0.0",
+    "rehype-katex": "https://esm.sh/rehype-katex@^7.0.1",
+    "rehype-raw": "https://esm.sh/rehype-raw@^7.0.0"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

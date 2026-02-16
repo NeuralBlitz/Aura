@@ -1,0 +1,9 @@
+{
+  "name": "Aura Chat",
+  "description": "A sleek, mobile-first AI chat interface powered by the latest Gemini models.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera",
+    "geolocation"
+  ]
+}
