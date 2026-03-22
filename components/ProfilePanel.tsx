@@ -27,6 +27,7 @@ interface ProfilePanelProps {
   vaultStatus: VaultStatus;
   onVaultStatusChange: (status: VaultStatus) => void;
   onLaunchTool?: (view: Tab) => void;
+  onSignOut?: () => void;
 }
 
 const AVATARS = [
@@ -53,7 +54,8 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({
   messages,
   vaultStatus,
   onVaultStatusChange,
-  onLaunchTool
+  onLaunchTool,
+  onSignOut
 }) => {
   const [activeSection, setActiveSection] = useState<'profile' | 'inbox' | 'toolbox' | 'settings' | 'alerts'>('profile');
   const [inboxTab, setInboxTab] = useState<'messages' | 'archives' | 'integrations'>('messages');
@@ -480,6 +482,15 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({
                   <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
                   Purge Local Data
                 </button>
+                {onSignOut && (
+                  <button 
+                    onClick={onSignOut}
+                    className="w-full flex items-center justify-center gap-3 p-5 bg-neutral-800/50 hover:bg-neutral-800 text-neutral-400 hover:text-white border border-white/10 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] transition-all group"
+                  >
+                    <Globe className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                    Disconnect Identity
+                  </button>
+                )}
               </section>
             </div>
           )}

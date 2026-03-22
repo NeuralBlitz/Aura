@@ -22,23 +22,28 @@ const WeatherView: React.FC = () => {
   useEffect(() => {
     const fetchWeather = async () => {
       setLoading(true);
-      // Simulate API delay
-      await new Promise(r => setTimeout(r, 800));
-      
-      const mockData = {
-        temp: Math.round(60 + Math.random() * 20),
-        condition: Math.random() > 0.5 ? 'rain' : 'clear',
-        humidity: Math.round(40 + Math.random() * 40),
-        wind: Math.round(5 + Math.random() * 20),
-        pressure: 1012 + Math.floor(Math.random() * 10),
-        forecast: Array.from({ length: 8 }, (_, i) => ({
-          time: `${(i * 3 + 12) % 24}:00`,
-          temp: 60 + Math.random() * 15,
-          precip: Math.random() * 100
-        }))
-      };
-      setData(mockData);
-      setLoading(false);
+      try {
+        const response = await fetch('/api/weather');
+        const weatherData = await response.json();
+        
+        // Adapt backend data to component format if needed
+        const adaptedData = {
+          ...weatherData,
+          humidity: Math.round(40 + Math.random() * 40),
+          wind: Math.round(5 + Math.random() * 20),
+          pressure: 1012 + Math.floor(Math.random() * 10),
+          forecast: Array.from({ length: 8 }, (_, i) => ({
+            time: `${(i * 3 + 12) % 24}:00`,
+            temp: weatherData.temp - 5 + Math.random() * 10,
+            precip: Math.random() * 100
+          }))
+        };
+        setData(adaptedData);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
     };
     fetchWeather();
   }, [activeCity]);

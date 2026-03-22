@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Home, Terminal, LayoutGrid, Newspaper, Users } from 'lucide-react';
+import { Home, Terminal, LayoutGrid, Newspaper, Brain } from 'lucide-react';
 import { Tab } from '../types';
 
 interface BottomNavProps {
@@ -13,8 +13,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) => {
     { id: 'nexus', icon: LayoutGrid, label: 'OS' },
     { id: 'news', icon: Newspaper, label: 'Intel' },
     { id: 'home', icon: Home, label: 'Neural' },
-    { id: 'forums', icon: Users, label: 'Mesh' },
-    { id: 'forge', icon: Terminal, label: 'Forge' },
+    { id: 'forge', icon: Brain, label: 'Forge' },
   ];
 
   return (

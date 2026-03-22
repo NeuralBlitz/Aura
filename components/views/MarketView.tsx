@@ -18,25 +18,22 @@ const MarketView: React.FC = () => {
   const [leverage, setLeverage] = useState(1);
   const [amount, setAmount] = useState(0);
 
+  const fetchMarketData = async () => {
+    try {
+      const response = await fetch('/api/market/prices');
+      const marketData = await response.json();
+      setData(marketData.history);
+      setBtcPrice(marketData.btc);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   useEffect(() => {
-    generateMockData();
-    const interval = setInterval(() => {
-      generateMockData();
-      setBtcPrice(prev => prev + (Math.random() * 100 - 50));
-    }, 5000);
+    fetchMarketData();
+    const interval = setInterval(fetchMarketData, 5000);
     return () => clearInterval(interval);
   }, []);
-
-  const generateMockData = () => {
-    const base = 65000;
-    const newData = Array.from({ length: 24 }, (_, i) => ({
-      time: `${i}:00`,
-      BTC: base + Math.random() * 2000 - 1000,
-      ETH: 3500 + Math.random() * 200 - 100,
-      SOL: 145 + Math.random() * 10 - 5
-    }));
-    setData(newData);
-  };
 
   const SidebarItem = ({ id, label, icon: Icon }: any) => (
     <button 

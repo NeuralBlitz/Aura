@@ -80,7 +80,7 @@ class TelemetryService {
   public subscribe(callback: (data: TelemetryData) => void) {
     this.listeners.add(callback);
     callback(this.data);
-    return () => this.listeners.delete(callback);
+    return () => { this.listeners.delete(callback); };
   }
 
   private notify() {

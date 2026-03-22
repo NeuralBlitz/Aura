@@ -5,9 +5,27 @@ import { telemetryService, TelemetryData } from '../services/telemetryService';
 
 const SystemMonitor: React.FC = () => {
   const [data, setData] = useState<TelemetryData | null>(null);
+  const [backendStatus, setBackendStatus] = useState<any>(null);
 
   useEffect(() => {
-    return telemetryService.subscribe(setData);
+    const fetchBackendStatus = async () => {
+      try {
+        const response = await fetch('/api/system/status');
+        const status = await response.json();
+        setBackendStatus(status);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    fetchBackendStatus();
+    const interval = setInterval(fetchBackendStatus, 5000);
+    
+    const unsubscribe = telemetryService.subscribe(setData);
+    return () => {
+      unsubscribe();
+      clearInterval(interval);
+    };
   }, []);
 
   if (!data) return null;
@@ -110,12 +128,20 @@ const SystemMonitor: React.FC = () => {
       
       {/* Footer Meta */}
       <div className="mt-8 pt-4 border-t border-white/5 flex items-center justify-between">
-         <div className="flex items-center gap-2">
-            <Clock className="w-3 h-3 text-neutral-600" />
-            <span className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Uptime: {Math.floor(data.uptime / 60)}m {data.uptime % 60}s</span>
+         <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+               <Clock className="w-3 h-3 text-neutral-600" />
+               <span className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Uptime: {backendStatus ? `${Math.floor(backendStatus.uptime / 60)}m ${Math.floor(backendStatus.uptime % 60)}s` : 'Syncing...'}</span>
+            </div>
+            {backendStatus && (
+              <div className="flex items-center gap-2">
+                <Cpu className="w-3 h-3 text-neutral-600" />
+                <span className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Nodes: {backendStatus.nodes}</span>
+              </div>
+            )}
          </div>
          <div className="text-[8px] font-black text-neutral-800 uppercase tracking-widest group-hover:text-blue-500/40 transition-colors">
-           Secure_Enclave_v4.5_Verified
+           {backendStatus ? `Aura_OS_v${backendStatus.version}_Verified` : 'Secure_Enclave_v4.5_Verified'}
          </div>
       </div>
     </div>

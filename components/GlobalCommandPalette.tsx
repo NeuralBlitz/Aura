@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Terminal, LayoutGrid, BookOpen, FolderKanban, ShoppingBag, Zap, X, Command, Cpu } from 'lucide-react';
+import { Search, Terminal, LayoutGrid, BookOpen, FolderKanban, ShoppingBag, Zap, X, Command, Cpu, Brain } from 'lucide-react';
 import { Tab } from '../types';
 
 interface GlobalCommandPaletteProps {
@@ -19,7 +19,8 @@ const GlobalCommandPalette: React.FC<GlobalCommandPaletteProps> = ({ isOpen, onC
     { id: 'chat', label: 'New Neural Thread', icon: Zap, tab: 'home' as Tab },
     { id: 'projects', label: 'Open Project Boards', icon: FolderKanban, tab: 'projects' as Tab },
     { id: 'notes', label: 'Access Knowledge Codex', icon: BookOpen, tab: 'notes' as Tab },
-    { id: 'forge', label: 'Enter Substrate Forge', icon: Terminal, tab: 'forge' as Tab },
+    { id: 'forge', label: 'Engage Codex Forge', icon: Brain, tab: 'forge' as Tab },
+    { id: 'live', label: 'Engage Aura Live', icon: Zap, tab: 'live' as Tab },
     { id: 'market', label: 'Explore Substrate Exchange', icon: ShoppingBag, tab: 'marketplace' as Tab },
   ];
 

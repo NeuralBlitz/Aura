@@ -11,9 +11,10 @@ interface ArtifactCanvasProps {
   artifact: Artifact | null;
   isOpen: boolean;
   onClose: () => void;
+  onOpenInForge?: (code: string) => void;
 }
 
-const ArtifactCanvas: React.FC<ArtifactCanvasProps> = ({ artifact, isOpen, onClose }) => {
+const ArtifactCanvas: React.FC<ArtifactCanvasProps> = ({ artifact, isOpen, onClose, onOpenInForge }) => {
   const [isMaximized, setIsMaximized] = useState(false);
   const [showConsole, setShowConsole] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -84,6 +85,15 @@ const ArtifactCanvas: React.FC<ArtifactCanvasProps> = ({ artifact, isOpen, onClo
           >
             {isMaximized ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
           </button>
+          {artifact.type === 'code' && onOpenInForge && (
+            <button 
+              onClick={() => onOpenInForge(artifact.content)}
+              className="p-2.5 text-blue-500 hover:text-white hover:bg-blue-600/20 rounded-xl transition-all"
+              title="Open in Forge"
+            >
+              <TerminalSquare className="w-5 h-5" />
+            </button>
+          )}
           <div className="w-px h-6 bg-white/10 mx-1" />
           <button 
             onClick={onClose}

@@ -11,18 +11,25 @@ interface MailViewProps {
 const MailView: React.FC<MailViewProps> = ({ messages = [], onNavigate }) => {
   const [activeTab, setActiveTab] = useState<'inbox' | 'archives' | 'services'>('inbox');
   const [savedChats, setSavedChats] = useState<Message[]>(messages);
+  const [mails, setMails] = useState<any[]>([]);
+
+  const fetchMails = async () => {
+    try {
+      const response = await fetch('/api/store/mail');
+      const data = await response.json();
+      setMails(data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   useEffect(() => {
-    // If props are provided, use them. Otherwise, could fall back to local storage, 
-    // but the app structure pushes props down now.
+    fetchMails();
+  }, []);
+
+  useEffect(() => {
     setSavedChats(messages);
   }, [messages]);
-
-  const mails = [
-    { id: 1, sender: "Aura Support", subject: "Welcome to Aura Pro", preview: "Thanks for upgrading! Here are some tips to get started with advanced reasoning...", time: "10:30 AM", unread: true, avatar: "AS" },
-    { id: 2, sender: "Google Cloud", subject: "Billing Alert", preview: "Your monthly statement for July is ready to view. Total amount: $0.00", time: "Yesterday", unread: false, avatar: "GC" },
-    { id: 3, sender: "NeuralNexus News", subject: "The Future of AI is here", preview: "This week we discuss the implications of AGI and what it means for...", time: "Mon", unread: false, avatar: "N" },
-  ];
 
   const emailServices = [
     { id: 'gmail', name: 'Google Mail', icon: 'https://upload.wikimedia.org/wikipedia/commons/7/7e/Gmail_icon_%282020%29.svg', status: 'Not Connected' },

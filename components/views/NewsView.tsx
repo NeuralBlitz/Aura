@@ -34,45 +34,13 @@ const NewsView: React.FC = () => {
   const fetchNews = async () => {
     setIsLoading(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: "Find 6 trending tech/AI news stories. Return JSON.",
-        config: {
-          tools: [{ googleSearch: {} }],
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              news: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    id: { type: Type.STRING },
-                    title: { type: Type.STRING },
-                    source: { type: Type.STRING },
-                    category: { type: Type.STRING },
-                    summary: { type: Type.STRING },
-                    time: { type: Type.STRING },
-                    sentiment: { type: Type.STRING },
-                  }
-                }
-              }
-            }
-          },
-        }
-      });
-      const parsed = JSON.parse(response.text);
-      setNews(parsed.news || []);
+      const response = await fetch('/api/news');
+      const data = await response.json();
+      setNews(data);
       // Mock sentiment data
       setSentimentData(Array.from({length:7}, (_,i) => ({ day: `D-${7-i}`, value: 50 + Math.random()*40 })));
     } catch (e) {
-      // Fallback
-      setNews([
-        { id: '1', title: "Gemini 3 Pro Architecture Unveiled", source: "NeuralBlitz", category: "AI & Tech", summary: "Researchers have successfully established a zero-latency causal loop.", time: "10m ago", url: "#", sentiment: 'bullish' },
-        { id: '2', title: "Quantum Entanglement Networking", source: "ScienceDaily", category: "Science", summary: "New protocols allow instant data transfer across nodes.", time: "1h ago", url: "#", sentiment: 'neutral' },
-      ]);
+      console.error(e);
     } finally {
       setIsLoading(false);
     }

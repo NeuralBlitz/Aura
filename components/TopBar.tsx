@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, Plus, Settings, Sparkles, Shield, Cpu, Activity, Zap, ShieldCheck, ShieldAlert, Wifi } from 'lucide-react';
+import { ChevronDown, Plus, Settings, Sparkles, Shield, Cpu, Activity, Zap, ShieldCheck, ShieldAlert, Wifi, MessageSquare } from 'lucide-react';
 import { ModelType, UserProfile, Theme } from '../types';
 import { telemetryService, TelemetryData } from '../services/telemetryService';
 
@@ -9,6 +9,7 @@ interface TopBarProps {
   onModelChange: (model: ModelType) => void;
   onNewChat: () => void;
   onOpenProfile: () => void;
+  onOpenHistory: () => void;
   theme: Theme;
   userProfile: UserProfile;
 }
@@ -18,6 +19,7 @@ const TopBar: React.FC<TopBarProps> = ({
   onModelChange, 
   onNewChat, 
   onOpenProfile, 
+  onOpenHistory,
   userProfile 
 }) => {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
@@ -31,7 +33,10 @@ const TopBar: React.FC<TopBarProps> = ({
     [ModelType.GEMINI_FLASH]: { name: 'Gemini 3 Flash', icon: <Zap className="w-3.5 h-3.5" />, color: 'text-blue-400', bg: 'bg-blue-400/10' },
     [ModelType.GEMINI_PRO]: { name: 'Gemini 3 Pro', icon: <Cpu className="w-3.5 h-3.5" />, color: 'text-purple-400', bg: 'bg-purple-400/10' },
     [ModelType.GEMINI_IMAGE]: { name: 'Imagine Engine', icon: <Sparkles className="w-3.5 h-3.5" />, color: 'text-pink-400', bg: 'bg-pink-400/10' },
-    [ModelType.GEMINI_INTELLIGENCE]: { name: 'Aura Intelligence', icon: <Activity className="w-3.5 h-3.5" />, color: 'text-emerald-400', bg: 'bg-emerald-400/10' }
+    [ModelType.GEMINI_INTELLIGENCE]: { name: 'Aura Intelligence', icon: <Activity className="w-3.5 h-3.5" />, color: 'text-emerald-400', bg: 'bg-emerald-400/10' },
+    [ModelType.CREATIVE_WRITING]: { name: 'Creative Writer', icon: <Sparkles className="w-3.5 h-3.5" />, color: 'text-fuchsia-400', bg: 'bg-fuchsia-400/10' },
+    [ModelType.CODING_ASSISTANT]: { name: 'Code Assistant', icon: <Cpu className="w-3.5 h-3.5" />, color: 'text-cyan-400', bg: 'bg-cyan-400/10' },
+    [ModelType.GENERAL_KNOWLEDGE]: { name: 'General Knowledge', icon: <ShieldCheck className="w-3.5 h-3.5" />, color: 'text-amber-400', bg: 'bg-amber-400/10' }
   };
 
   const coherence = telemetry?.coherence || 100;
@@ -93,6 +98,12 @@ const TopBar: React.FC<TopBarProps> = ({
            <span className="text-[9px] font-black uppercase tracking-widest">{coherence}%</span>
         </div>
 
+        <button 
+          onClick={onOpenHistory}
+          className="p-2.5 text-neutral-400 hover:text-white bg-white/5 border border-white/5 rounded-2xl transition-all active:scale-90 shadow-sm"
+        >
+          <MessageSquare className="w-5 h-5" />
+        </button>
         <button 
           onClick={onNewChat}
           className="p-2.5 text-neutral-400 hover:text-white bg-white/5 border border-white/5 rounded-2xl transition-all active:scale-90 shadow-sm"

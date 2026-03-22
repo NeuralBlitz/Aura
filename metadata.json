@@ -1,6 +1,6 @@
 {
-  "name": "Aura Chat",
-  "description": "A sleek, mobile-first AI chat interface powered by the latest Gemini models.",
+  "name": "Aura OS Forge",
+  "description": "A high-performance spatial substrate forge and agentic coding environment powered by Aura Codex.",
   "requestFramePermissions": [
     "microphone",
     "camera",

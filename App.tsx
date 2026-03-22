@@ -16,6 +16,7 @@ import NotesView from './components/views/NotesView';
 import NewsView from './components/views/NewsView';
 import ForumsView from './components/views/ForumsView';
 import ScriptoriumView from './components/views/ScriptoriumView';
+import LiveView from './components/views/LiveView';
 import ChangelogView from './components/views/ChangelogView';
 import FocusView from './components/views/FocusView';
 import NetworkView from './components/views/NetworkView';
@@ -44,11 +45,16 @@ import FloatingChat from './components/FloatingChat';
 import AuraSplash from './components/AuraSplash';
 import OnboardingFlow from './components/OnboardingFlow';
 import GlobalCommandPalette from './components/GlobalCommandPalette';
+import AuthScreen from './components/AuthScreen';
+import ChatHistorySidebar from './components/ChatHistorySidebar';
 import { Message, ModelType, Artifact, UserPreferences, UserProfile, Tab, MorphingState, Thread } from './types';
 import { sendMessageStreamToGemini } from './services/geminiService';
 import { telemetryService, TelemetryData } from './services/telemetryService';
 import { haptic, HapticPattern } from './services/hapticService';
 import { storageService } from './services/storageService';
+import { auth, db } from './services/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { collection, query, where, orderBy, onSnapshot, doc, setDoc, getDocs } from 'firebase/firestore';
 
 export default function App() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -58,12 +64,16 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [forgeCode, setForgeCode] = useState<string | null>(null);
   const [activeArtifact, setActiveArtifact] = useState<Artifact | null>(null);
   const [isArtifactOpen, setIsArtifactOpen] = useState(false);
   const [telemetry, setTelemetry] = useState<TelemetryData | null>(null);
   const [morphingState, setMorphingState] = useState<MorphingState>('standby');
   const [showSplash, setShowSplash] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const [userProfile, setUserProfile] = useState<UserProfile>({
@@ -89,28 +99,141 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        setIsAuthenticated(true);
+        setUserProfile(prev => ({
+          ...prev,
+          username: user.displayName || user.email?.split('@')[0] || 'Explorer',
+          avatarUrl: user.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${user.uid}`
+        }));
+        
+        // Ensure user document exists
+        try {
+          await setDoc(doc(db, 'users', user.uid), {
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName,
+            photoURL: user.photoURL,
+            createdAt: Date.now()
+          }, { merge: true });
+        } catch (e) {
+          console.error("Failed to sync user profile", e);
+        }
+      } else {
+        setIsAuthenticated(false);
+      }
+      setIsAuthChecking(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated || !auth.currentUser) return;
+    
+    if (currentThreadId === 'main') {
+      setMessages([]);
+      return;
+    }
+
+    const q = query(
+      collection(db, `threads/${currentThreadId}/messages`),
+      orderBy('timestamp', 'asc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const loadedMessages: Message[] = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        loadedMessages.push({
+          ...data,
+          id: doc.id,
+          timestamp: new Date(data.timestamp)
+        } as Message);
+      });
+      setMessages(loadedMessages);
+    });
+
+    return () => unsubscribe();
+  }, [currentThreadId, isAuthenticated]);
+
+  useEffect(() => {
     if (activeTab === 'home') bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading, activeTab]);
 
+  const saveMessageToFirestore = async (threadId: string, message: Message) => {
+    if (!auth.currentUser) return;
+    try {
+      await setDoc(doc(db, `threads/${threadId}/messages`, message.id), {
+        id: message.id,
+        threadId: threadId,
+        userId: auth.currentUser.uid,
+        role: message.role,
+        text: message.text,
+        timestamp: message.timestamp.getTime()
+      });
+    } catch (e) {
+      console.error("Failed to save message", e);
+    }
+  };
+
   const handleSend = async (text: string, attachment?: string) => {
+    if (!auth.currentUser) return;
     haptic.trigger(HapticPattern.UI_INTERACT);
-    const userMsg: Message = { id: Date.now().toString(), role: 'user', text, imageUrl: attachment, timestamp: new Date(), threadId: currentThreadId };
+    
+    let threadId = currentThreadId;
+    if (threadId === 'main') {
+      threadId = Date.now().toString();
+      setCurrentThreadId(threadId);
+      try {
+        await setDoc(doc(db, 'threads', threadId), {
+          id: threadId,
+          userId: auth.currentUser.uid,
+          title: text.substring(0, 40) + (text.length > 40 ? '...' : ''),
+          updatedAt: Date.now(),
+          createdAt: Date.now()
+        });
+      } catch (e) {
+        console.error("Failed to create thread", e);
+      }
+    } else {
+      try {
+        await setDoc(doc(db, 'threads', threadId), {
+          updatedAt: Date.now()
+        }, { merge: true });
+      } catch (e) {}
+    }
+
+    const userMsg: Message = { id: Date.now().toString(), role: 'user', text, imageUrl: attachment, timestamp: new Date(), threadId };
     setMessages(prev => [...prev, userMsg]);
+    await saveMessageToFirestore(threadId, userMsg);
+    
     setIsLoading(true);
 
     const assistantId = (Date.now() + 1).toString();
-    setMessages(prev => [...prev, { id: assistantId, role: 'model', text: '', timestamp: new Date(), isStreaming: true, threadId: currentThreadId }]);
+    setMessages(prev => [...prev, { id: assistantId, role: 'model', text: '', timestamp: new Date(), isStreaming: true, threadId }]);
 
     try {
-      const stream = sendMessageStreamToGemini(messages.concat(userMsg), text, currentModel, attachment);
+      const stream = sendMessageStreamToGemini(messages, text, currentModel, attachment);
+      let finalMessage: Message | null = null;
       for await (const chunk of stream) {
-        setMessages(prev => prev.map(m => m.id === assistantId ? { 
-          ...m, text: chunk.text, 
-          artifacts: chunk.artifacts, 
-          widgets: chunk.widgets, 
-          thinkingSteps: chunk.thinking,
-          groundingMetadata: chunk.grounding 
-        } : m));
+        setMessages(prev => prev.map(m => {
+          if (m.id === assistantId) {
+            finalMessage = { 
+              ...m, text: chunk.text, 
+              artifacts: chunk.artifacts, 
+              widgets: chunk.widgets, 
+              thinkingSteps: chunk.thinking,
+              groundingMetadata: chunk.grounding,
+              isStreaming: !chunk.done
+            };
+            return finalMessage;
+          }
+          return m;
+        }));
+      }
+      if (finalMessage) {
+        await saveMessageToFirestore(threadId, finalMessage);
       }
       haptic.trigger(HapticPattern.SUCCESS);
     } catch (e: any) {
@@ -150,13 +273,21 @@ export default function App() {
       case 'signal': return <SignalView />;
       case 'style': return <StyleView />;
       case 'loom': return <LoomView />;
+      case 'live': return <LiveView onClose={() => setActiveTab('home')} />;
       
       case 'search': return <SearchView onNavigateToScriptorium={() => setActiveTab('scriptorium')} />;
-      case 'forge': return <ForgeView initialCode={null} />;
+      case 'forge': return <ForgeView initialCode={forgeCode} onClearInjected={() => setForgeCode(null)} />;
       case 'marketplace': return <Marketplace installedIds={preferences.installedModules} onInstall={(id) => setPreferences(p => ({ ...p, installedModules: [...p.installedModules, id] }))} onLaunch={(id) => setActiveTab(id as Tab)} />;
       default:
         return messages.length === 0 ? (
-          <StartDashboard onAction={(p, m, t) => { if (m) setCurrentModel(m as ModelType); handleSend(p); }} userParams={userProfile} />
+          <StartDashboard onAction={(p, m, t) => { 
+            if (t === 'live') {
+              setActiveTab('live');
+            } else {
+              if (m) setCurrentModel(m as ModelType); 
+              handleSend(p); 
+            }
+          }} userParams={userProfile} />
         ) : (
           <div className="pb-8">
             {messages.map((msg, i) => (
@@ -169,21 +300,47 @@ export default function App() {
   };
 
   if (showSplash) return <AuraSplash onComplete={() => setShowSplash(false)} />;
+  if (isAuthChecking) return <div className="min-h-screen bg-black flex items-center justify-center"><div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div></div>;
+  if (!isAuthenticated) return <AuthScreen onSuccess={() => setIsAuthenticated(true)} />;
 
   return (
     <div className="flex flex-col h-[100dvh] bg-black overflow-hidden select-none relative transition-all duration-1000">
       {showOnboarding && <OnboardingFlow onComplete={() => setShowOnboarding(false)} />}
       <div className="absolute inset-0 bg-aurora pointer-events-none" />
-      <TopBar currentModel={currentModel} onModelChange={setCurrentModel} onNewChat={() => { setMessages([]); setActiveTab('home'); }} onOpenProfile={() => setIsProfileOpen(true)} theme={preferences.theme} userProfile={userProfile} />
-      <ArtifactCanvas artifact={activeArtifact} isOpen={isArtifactOpen} onClose={() => setIsArtifactOpen(false)} />
+      <TopBar 
+        currentModel={currentModel} 
+        onModelChange={setCurrentModel} 
+        onNewChat={() => { setCurrentThreadId('main'); setMessages([]); setActiveTab('home'); }} 
+        onOpenProfile={() => setIsProfileOpen(true)} 
+        onOpenHistory={() => setIsHistoryOpen(true)}
+        theme={preferences.theme} 
+        userProfile={userProfile} 
+      />
+      <ChatHistorySidebar 
+        isOpen={isHistoryOpen} 
+        onClose={() => setIsHistoryOpen(false)} 
+        currentThreadId={currentThreadId} 
+        onSelectThread={(id) => { setCurrentThreadId(id); setActiveTab('home'); }} 
+        onNewChat={() => { setCurrentThreadId('main'); setMessages([]); setActiveTab('home'); }} 
+      />
+      <ArtifactCanvas 
+        artifact={activeArtifact} 
+        isOpen={isArtifactOpen} 
+        onClose={() => setIsArtifactOpen(false)} 
+        onOpenInForge={(code) => {
+          setForgeCode(code);
+          setActiveTab('forge');
+          setIsArtifactOpen(false);
+        }}
+      />
       <GlobalCommandPalette isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} onNavigate={setActiveTab} onExecute={handleSend} />
       <ProfilePanel 
         isOpen={isProfileOpen} 
         onClose={() => setIsProfileOpen(false)} 
         profile={userProfile} 
-        onUpdateProfile={setUserProfile} 
+        onUpdateProfile={(updates) => setUserProfile(prev => ({ ...prev, ...updates }))} 
         preferences={preferences} 
-        onUpdatePreferences={setPreferences} 
+        onUpdatePreferences={(updates) => setPreferences(prev => ({ ...prev, ...updates }))} 
         onClearHistory={() => setMessages([])} 
         messages={messages} 
         vaultStatus="uninitialized" 
@@ -191,6 +348,7 @@ export default function App() {
         hasPlatformKey={true} 
         onSelectKey={() => {}} 
         onLaunchTool={(view) => setActiveTab(view)} 
+        onSignOut={() => auth.signOut()}
       />
       <main className={`flex-1 overflow-y-auto pt-16 pb-48 no-scrollbar scroll-smooth relative z-10 ${activeTab === 'home' ? 'bg-black' : 'bg-[#050505]'}`}>
         {renderContent()}

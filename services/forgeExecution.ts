@@ -59,15 +59,38 @@ export const executeCode = async (
       const AURA = {
         get telemetry() { return currentTelemetry; },
         three: THREE,
+        utils: {
+          lerp: (a, b, t) => a + (b - a) * t,
+          clamp: (v, min, max) => Math.max(min, Math.min(max, v)),
+          random: (min, max) => Math.random() * (max - min) + min,
+          hsl: (h, s, l) => \`hsl(\${h}, \${s}%, \${l}%)\`,
+          rgba: (r, g, b, a) => \`rgba(\${r}, \${g}, \${b}, \${a})\`,
+        },
+        onInput: (type, callback) => {
+          if (!canvas) return;
+          const handler = (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX || e.touches?.[0]?.clientX) - rect.left;
+            const y = (e.clientY || e.touches?.[0]?.clientY) - rect.top;
+            callback({ x, y, originalEvent: e });
+          };
+          canvas.addEventListener(type, handler);
+          registerCleanup(() => canvas.removeEventListener(type, handler));
+        },
         render: (element) => {
           if (!canvas) return;
           const parent = canvas.parentElement;
+          const existing = parent.querySelector('#aura-spatial-mount');
+          if (existing) existing.remove();
+          
           const mount = document.createElement('div');
           mount.id = 'aura-spatial-mount';
-          mount.className = 'absolute inset-0 bg-black flex items-center justify-center p-8 overflow-auto no-scrollbar font-sans';
+          mount.className = 'absolute inset-0 bg-black flex items-center justify-center p-8 overflow-auto no-scrollbar font-sans text-white';
           parent.appendChild(mount);
+          
           if (typeof element === 'string') mount.innerHTML = element;
           else if (element instanceof HTMLElement) mount.appendChild(element);
+          
           canvas.style.display = 'none';
           registerCleanup(() => { mount.remove(); canvas.style.display = 'block'; });
         },
@@ -84,21 +107,30 @@ export const executeCode = async (
              renderer.render(scene, camera);
            };
            animate();
-           registerCleanup(() => cancelAnimationFrame(frameId));
+           registerCleanup(() => {
+             cancelAnimationFrame(frameId);
+             renderer.dispose();
+           });
         },
         animate: (fn) => {
           let active = true;
           let frameId;
           const loop = (time) => { 
             if(!active) return;
-            fn(time, { telemetry: currentTelemetry }); 
+            try {
+              fn(time, { telemetry: currentTelemetry }); 
+            } catch (e) {
+              mockConsole.error("Animation Loop Error:", e);
+              active = false;
+            }
             frameId = requestAnimationFrame(loop); 
           };
           frameId = requestAnimationFrame(loop);
           registerCleanup(() => { active = false; cancelAnimationFrame(frameId); });
         },
         vibrate: (p) => navigator.vibrate?.(p || 100),
-        clear: () => ctx?.clearRect(0, 0, canvas.width, canvas.height)
+        clear: () => ctx?.clearRect(0, 0, canvas.width, canvas.height),
+        log: (...args) => mockConsole.log(...args)
       };
 
       return (async () => {

@@ -306,10 +306,10 @@ const ProjectsView: React.FC = () => {
         
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
            {projects.map(proj => (
-              <button
+              <div
                 key={proj.id}
                 onClick={() => setActiveProject(proj)}
-                className={`w-full text-left p-3 rounded-xl border transition-all group relative ${activeProject?.id === proj.id ? 'bg-blue-600/10 border-blue-500/30' : 'border-transparent hover:bg-white/5'}`}
+                className={`w-full text-left p-3 rounded-xl border transition-all group relative cursor-pointer ${activeProject?.id === proj.id ? 'bg-blue-600/10 border-blue-500/30' : 'border-transparent hover:bg-white/5'}`}
               >
                  <div className="flex justify-between items-start">
                     <span className={`text-xs font-bold truncate ${activeProject?.id === proj.id ? 'text-white' : 'text-neutral-400 group-hover:text-white'}`}>{proj.title}</span>
@@ -325,7 +325,7 @@ const ProjectsView: React.FC = () => {
                        <Trash2 className="w-3 h-3" />
                     </button>
                  )}
-              </button>
+              </div>
            ))}
         </div>
 

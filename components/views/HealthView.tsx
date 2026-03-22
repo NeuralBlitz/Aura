@@ -7,28 +7,45 @@ const HealthView: React.FC = () => {
   const [progress, setProgress] = useState(0);
   const [reports, setReports] = useState<{label: string, status: 'ok' | 'warn', value: string}[]>([]);
 
-  const runScan = () => {
+  const runScan = async () => {
     setScanning(true);
     setProgress(0);
     setReports([]);
     
+    // Simulate scan progress
     const interval = setInterval(() => {
       setProgress(p => {
         if (p >= 100) {
           clearInterval(interval);
-          setScanning(false);
-          setReports([
-            { label: 'Identity Enclave', status: 'ok', value: 'AES-GCM Secure' },
-            { label: 'Neural Coherence', status: 'ok', value: '99.4%' },
-            { label: 'Database Integrity', status: 'ok', value: 'GoldenDAG Verified' },
-            { label: 'Network Proxy', status: 'warn', value: 'Latency 24ms' },
-            { label: 'Memory Leakage', status: 'ok', value: 'None' },
-          ]);
           return 100;
         }
         return p + 1;
       });
-    }, 40);
+    }, 20);
+
+    try {
+      const response = await fetch('/api/system/health');
+      const data = await response.json();
+      
+      // Wait for progress to reach 100 before showing reports
+      await new Promise(resolve => {
+        const check = setInterval(() => {
+          setProgress(p => {
+            if (p >= 100) {
+              clearInterval(check);
+              resolve(null);
+            }
+            return p;
+          });
+        }, 100);
+      });
+
+      setReports(data.reports);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setScanning(false);
+    }
   };
 
   useEffect(() => { runScan(); }, []);

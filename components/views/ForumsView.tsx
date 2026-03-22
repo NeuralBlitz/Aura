@@ -59,7 +59,7 @@ const INITIAL_THREADS: Thread[] = [
 ];
 
 const ForumsView: React.FC = () => {
-  const [threads, setThreads] = useState<Thread[]>(INITIAL_THREADS);
+  const [threads, setThreads] = useState<Thread[]>([]);
   const [selectedThread, setSelectedThread] = useState<Thread | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -74,6 +74,23 @@ const ForumsView: React.FC = () => {
     { name: "Fabrication", icon: Hammer, color: "text-blue-400" },
     { name: "General", icon: MessageSquare, color: "text-neutral-400" }
   ];
+
+  const fetchThreads = async () => {
+    setIsRefreshing(true);
+    try {
+      const response = await fetch('/api/store/forums');
+      const data = await response.json();
+      setThreads(data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchThreads();
+  }, []);
 
   const fetchLiveThreads = async () => {
     setIsRefreshing(true);
@@ -99,7 +116,13 @@ const ForumsView: React.FC = () => {
         isNew: true
       };
 
-      setThreads(prev => [newThread, ...prev]);
+      await fetch('/api/store/forums', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newThread)
+      });
+      
+      fetchThreads();
     } catch (e) {
       console.error(e);
     } finally {
@@ -107,7 +130,7 @@ const ForumsView: React.FC = () => {
     }
   };
 
-  const handleCreatePost = () => {
+  const handleCreatePost = async () => {
     if (!newPostTitle.trim()) return;
     const post: Thread = {
       id: Date.now().toString(),
@@ -121,7 +144,14 @@ const ForumsView: React.FC = () => {
       time: "Just now",
       isNew: true
     };
-    setThreads(prev => [post, ...prev]);
+    
+    await fetch('/api/store/forums', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(post)
+    });
+
+    fetchThreads();
     setNewPostTitle('');
     setNewPostContent('');
     setIsCreating(false);

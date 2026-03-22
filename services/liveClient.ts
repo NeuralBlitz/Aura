@@ -131,9 +131,9 @@ export class LiveClient {
       // Ensure data is sent only after session resolves
       this.sessionPromise?.then(session => {
         session.sendRealtimeInput({
-          media: {
-            mimeType: 'audio/pcm;rate=16000',
-            data: uint8ArrayToBase64(new Uint8Array(pcmData.buffer))
+          audio: {
+            data: uint8ArrayToBase64(new Uint8Array(pcmData.buffer)),
+            mimeType: 'audio/pcm;rate=16000'
           }
         });
       });
@@ -192,9 +192,9 @@ export class LiveClient {
   async sendVideoFrame(base64Image: string) {
     this.sessionPromise?.then(session => {
       session.sendRealtimeInput({
-        media: {
-          mimeType: 'image/jpeg',
-          data: base64Image
+        video: {
+          data: base64Image,
+          mimeType: 'image/jpeg'
         }
       });
     });

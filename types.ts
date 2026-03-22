@@ -5,7 +5,10 @@ export enum ModelType {
   GEMINI_FLASH = 'gemini-3-flash-preview',
   GEMINI_PRO = 'gemini-3-pro-preview',
   GEMINI_IMAGE = 'gemini-2.5-flash-image',
-  GEMINI_INTELLIGENCE = 'gemini-2.5-flash-native-audio-preview-12-2025'
+  GEMINI_INTELLIGENCE = 'gemini-2.5-flash-native-audio-preview-12-2025',
+  CREATIVE_WRITING = 'creative-writing',
+  CODING_ASSISTANT = 'coding-assistant',
+  GENERAL_KNOWLEDGE = 'general-knowledge'
 }
 
 export interface GroundingSource {
@@ -125,7 +128,7 @@ export interface MemoryRetrieval {
 export type Theme = 'light' | 'dark' | 'ghost' | 'zen' | 'oled';
 export type MorphingState = 'standby' | 'reasoning' | 'fabrication' | 'critical' | 'creative' | 'ghost';
 
-export type Tab = 'home' | 'nexus' | 'marketplace' | 'projects' | 'notes' | 'forge' | 'search' | 'news' | 'forums' | 'scriptorium' | 'changelog' | 'focus' | 'vault' | 'network' | 'utility' | 'translate' | 'health' | 'library' | 'market' | 'sonic' | 'weather' | 'calendar' | 'browser' | 'webhook' | 'dreamstream' | 'cipher' | 'biolink' | 'echo' | 'signal' | 'void' | 'style' | 'loom' | 'capsule' | 'zenith';
+export type Tab = 'home' | 'nexus' | 'marketplace' | 'projects' | 'notes' | 'forge' | 'search' | 'news' | 'forums' | 'scriptorium' | 'changelog' | 'focus' | 'vault' | 'network' | 'utility' | 'translate' | 'health' | 'library' | 'market' | 'sonic' | 'weather' | 'calendar' | 'browser' | 'webhook' | 'dreamstream' | 'cipher' | 'biolink' | 'echo' | 'signal' | 'void' | 'style' | 'loom' | 'capsule' | 'zenith' | 'live' | 'agent';
 
 export type QuickActionType = 'aura-live' | 'nearby-search' | 'create-image' | 'analyze-data' | 'settings';
 

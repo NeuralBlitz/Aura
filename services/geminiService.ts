@@ -72,7 +72,7 @@ const parseResponse = (text: string): { artifacts: Artifact[], widgets: Widget[]
 export async function* sendMessageStreamToGemini(
   history: Message[],
   prompt: string,
-  model: ModelType = ModelType.GEMINI_FLASH,
+  modelType: ModelType = ModelType.GEMINI_FLASH,
   attachment?: string,
   systemInstruction?: string,
   enabledToolIds: string[] = []
@@ -82,7 +82,38 @@ export async function* sendMessageStreamToGemini(
   let memories: MemoryRetrieval[] = [];
   try { memories = await memoryService.queryMemories(prompt); } catch (e) {}
 
-  let effectiveSystemInstruction = (systemInstruction || "You are Aura, a sophisticated AI assistant.") + GEN_UI_INSTRUCTIONS;
+  let actualModel = 'gemini-3-flash-preview';
+  let defaultInstruction = "You are Aura, a sophisticated AI assistant.";
+  
+  switch (modelType) {
+    case ModelType.CREATIVE_WRITING:
+      actualModel = 'gemini-3.1-pro-preview';
+      defaultInstruction = "You are an expert creative writer, poet, and storyteller. Focus on narrative flow, evocative language, and character development.";
+      break;
+    case ModelType.CODING_ASSISTANT:
+      actualModel = 'gemini-3.1-pro-preview';
+      defaultInstruction = "You are an expert software engineer and coding assistant. Provide clean, efficient, and well-documented code. Explain your reasoning clearly.";
+      break;
+    case ModelType.GENERAL_KNOWLEDGE:
+      actualModel = 'gemini-3-flash-preview';
+      defaultInstruction = "You are a highly knowledgeable general assistant. Provide accurate, concise, and helpful answers across a wide range of topics.";
+      break;
+    case ModelType.GEMINI_PRO:
+      actualModel = 'gemini-3.1-pro-preview';
+      break;
+    case ModelType.GEMINI_IMAGE:
+      actualModel = 'gemini-2.5-flash-image';
+      break;
+    case ModelType.GEMINI_INTELLIGENCE:
+      actualModel = 'gemini-2.5-flash-native-audio-preview-12-2025';
+      break;
+    case ModelType.GEMINI_FLASH:
+    default:
+      actualModel = 'gemini-3-flash-preview';
+      break;
+  }
+
+  let effectiveSystemInstruction = (systemInstruction || defaultInstruction) + GEN_UI_INSTRUCTIONS;
   if (memories.length > 0) {
     effectiveSystemInstruction += `\n\nContext:\n${memories.map(m => m.text).join('\n')}`;
   }
@@ -98,7 +129,7 @@ export async function* sendMessageStreamToGemini(
     const config: any = { 
       tools,
       systemInstruction: effectiveSystemInstruction,
-      thinkingConfig: { thinkingBudget: model === ModelType.GEMINI_PRO ? 32768 : 24576 }
+      thinkingConfig: { thinkingBudget: (actualModel === 'gemini-3.1-pro-preview' || actualModel === 'gemini-3-pro-preview') ? 32768 : 24576 }
     };
 
     const contents: any = { parts: [] };
@@ -108,8 +139,8 @@ export async function* sendMessageStreamToGemini(
     }
     contents.parts.push({ text: prompt });
 
-    const chat = ai.chats.create({ model, history: formattedHistory, config });
-    let response = await chat.sendMessageStream({ message: contents });
+    const chat = ai.chats.create({ model: actualModel, history: formattedHistory, config });
+    let response = await chat.sendMessageStream({ message: contents.parts });
 
     let fullText = "";
     let grounding: GroundingSource[] = [];
@@ -143,7 +174,7 @@ export async function* sendMessageStreamToGemini(
         const result = await executeTool(call.name, call.args);
         return { functionResponse: { name: call.name, response: { result } } };
       }));
-      response = await chat.sendMessageStream({ message: { parts: functionResponses } });
+      response = await chat.sendMessageStream({ message: functionResponses });
     }
     const { artifacts, widgets, thinking, cleanText } = parseResponse(fullText);
     yield { text: cleanText, artifacts, widgets, thinking, memories, grounding, done: true };
