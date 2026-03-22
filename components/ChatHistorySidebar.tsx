@@ -129,9 +129,16 @@ const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
               >
                 <div className="flex-1 min-w-0 pr-4">
                   <p className="text-xs font-bold truncate">{thread.title}</p>
-                  <p className="text-[9px] font-mono opacity-50 mt-1">
-                    {new Date(thread.updatedAt).toLocaleDateString()}
-                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className="text-[9px] font-mono opacity-50">
+                      {new Date(thread.updatedAt).toLocaleDateString()}
+                    </p>
+                    {thread.modelType && (
+                      <span className="text-[7px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-white/5 text-neutral-500 border border-white/5">
+                        {thread.modelType.split('-')[0]}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <button 
                   onClick={(e) => handleDeleteThread(e, thread.id)}

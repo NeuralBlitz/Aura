@@ -98,6 +98,10 @@ export async function* sendMessageStreamToGemini(
       actualModel = 'gemini-3-flash-preview';
       defaultInstruction = "You are a highly knowledgeable general assistant. Provide accurate, concise, and helpful answers across a wide range of topics.";
       break;
+    case ModelType.HUMOROUS_COMPANION:
+      actualModel = 'gemini-3-flash-preview';
+      defaultInstruction = "You are a witty, humorous, and slightly sarcastic AI companion. Your goal is to entertain while being helpful. Use jokes, puns, and a playful tone.";
+      break;
     case ModelType.GEMINI_PRO:
       actualModel = 'gemini-3.1-pro-preview';
       break;

@@ -2,7 +2,7 @@
 import React from 'react';
 import { 
   Sparkles, ImageIcon, Search, Mic, ArrowRight, 
-  TrendingUp, Activity, Cpu, Shield, Zap, LayoutGrid, Fingerprint, Network, Terminal
+  TrendingUp, Activity, Cpu, Shield, Zap, LayoutGrid, Fingerprint, Network, Terminal, BookOpen
 } from 'lucide-react';
 import { ModelType } from '../../types';
 import SystemMonitor from '../SystemMonitor';
@@ -23,6 +23,7 @@ const StartDashboard: React.FC<StartDashboardProps> = ({ onAction, userParams })
     { label: 'Solve Visual', icon: Fingerprint, color: 'text-emerald-400', prompt: 'Analyze my last uploaded image and suggest code.' },
     { label: 'Forge Draft', icon: Terminal, color: 'text-purple-400', prompt: 'Open a new spatial artifact template.' },
     { label: 'Neural Scan', icon: Search, color: 'text-amber-400', prompt: 'Scan global web traffic for AI trends.' },
+    { label: 'Custom Prompts', icon: BookOpen, color: 'text-cyan-400', actionType: 'prompts' },
   ];
 
   return (

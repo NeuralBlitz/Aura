@@ -8,7 +8,8 @@ export enum ModelType {
   GEMINI_INTELLIGENCE = 'gemini-2.5-flash-native-audio-preview-12-2025',
   CREATIVE_WRITING = 'creative-writing',
   CODING_ASSISTANT = 'coding-assistant',
-  GENERAL_KNOWLEDGE = 'general-knowledge'
+  GENERAL_KNOWLEDGE = 'general-knowledge',
+  HUMOROUS_COMPANION = 'humorous-companion'
 }
 
 export interface GroundingSource {
@@ -21,6 +22,15 @@ export interface Thread {
   id: string;
   title: string;
   updatedAt: number;
+  modelType?: ModelType;
+}
+
+export interface CustomPrompt {
+  id: string;
+  name: string;
+  prompt: string;
+  userId: string;
+  createdAt: number;
 }
 
 export type VaultStatus = 'uninitialized' | 'locked' | 'unlocked';

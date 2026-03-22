@@ -47,14 +47,15 @@ import OnboardingFlow from './components/OnboardingFlow';
 import GlobalCommandPalette from './components/GlobalCommandPalette';
 import AuthScreen from './components/AuthScreen';
 import ChatHistorySidebar from './components/ChatHistorySidebar';
-import { Message, ModelType, Artifact, UserPreferences, UserProfile, Tab, MorphingState, Thread } from './types';
+import PromptManager from './components/PromptManager';
+import { Message, ModelType, Artifact, UserPreferences, UserProfile, Tab, MorphingState, Thread, CustomPrompt } from './types';
 import { sendMessageStreamToGemini } from './services/geminiService';
 import { telemetryService, TelemetryData } from './services/telemetryService';
 import { haptic, HapticPattern } from './services/hapticService';
 import { storageService } from './services/storageService';
 import { auth, db } from './services/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { collection, query, where, orderBy, onSnapshot, doc, setDoc, getDocs } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, doc, setDoc, getDocs, getDoc } from 'firebase/firestore';
 
 export default function App() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -65,6 +66,7 @@ export default function App() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isPromptManagerOpen, setIsPromptManagerOpen] = useState(false);
   const [forgeCode, setForgeCode] = useState<string | null>(null);
   const [activeArtifact, setActiveArtifact] = useState<Artifact | null>(null);
   const [isArtifactOpen, setIsArtifactOpen] = useState(false);
@@ -110,22 +112,36 @@ export default function App() {
         
         // Ensure user document exists
         try {
-          await setDoc(doc(db, 'users', user.uid), {
+          const userData: any = {
             uid: user.uid,
-            email: user.email,
-            displayName: user.displayName,
-            photoURL: user.photoURL,
+            displayName: user.displayName || null,
+            photoURL: user.photoURL || null,
             createdAt: Date.now()
-          }, { merge: true });
+          };
+          if (user.email) userData.email = user.email;
+          
+          await setDoc(doc(db, 'users', user.uid), userData, { merge: true });
         } catch (e) {
-          console.error("Failed to sync user profile", e);
+          console.error("Failed to sync user profile to Firestore:", e);
         }
       } else {
         setIsAuthenticated(false);
       }
       setIsAuthChecking(false);
+    }, (error) => {
+      console.error("Auth State Error:", error);
+      setIsAuthChecking(false);
     });
-    return () => unsubscribe();
+    
+    // Safety timeout for auth check
+    const timer = setTimeout(() => {
+      setIsAuthChecking(false);
+    }, 10000);
+
+    return () => {
+      unsubscribe();
+      clearTimeout(timer);
+    };
   }, []);
 
   useEffect(() => {
@@ -135,6 +151,20 @@ export default function App() {
       setMessages([]);
       return;
     }
+
+    // Fetch thread info to set the correct model
+    const fetchThreadInfo = async () => {
+      try {
+        const threadDoc = await getDoc(doc(db, 'threads', currentThreadId));
+        if (threadDoc.exists()) {
+          const data = threadDoc.data() as Thread;
+          if (data.modelType) setCurrentModel(data.modelType);
+        }
+      } catch (e) {
+        console.error("Failed to fetch thread info", e);
+      }
+    };
+    fetchThreadInfo();
 
     const q = query(
       collection(db, `threads/${currentThreadId}/messages`),
@@ -169,7 +199,7 @@ export default function App() {
         threadId: threadId,
         userId: auth.currentUser.uid,
         role: message.role,
-        text: message.text,
+        text: message.text || '',
         timestamp: message.timestamp.getTime()
       });
     } catch (e) {
@@ -177,24 +207,28 @@ export default function App() {
     }
   };
 
-  const handleSend = async (text: string, attachment?: string) => {
+  const handleSend = async (text: string = '', attachment?: string) => {
     if (!auth.currentUser) return;
+    const safeText = text || '';
     haptic.trigger(HapticPattern.UI_INTERACT);
     
     let threadId = currentThreadId;
     if (threadId === 'main') {
-      threadId = Date.now().toString();
-      setCurrentThreadId(threadId);
+      const newThreadId = Date.now().toString();
       try {
-        await setDoc(doc(db, 'threads', threadId), {
-          id: threadId,
+        await setDoc(doc(db, 'threads', newThreadId), {
+          id: newThreadId,
           userId: auth.currentUser.uid,
-          title: text.substring(0, 40) + (text.length > 40 ? '...' : ''),
+          title: safeText.substring(0, 40) + (safeText.length > 40 ? '...' : '') || 'New Conversation',
+          modelType: currentModel,
           updatedAt: Date.now(),
           createdAt: Date.now()
         });
+        threadId = newThreadId;
+        setCurrentThreadId(newThreadId);
       } catch (e) {
         console.error("Failed to create thread", e);
+        return; // Don't proceed if thread creation failed
       }
     } else {
       try {
@@ -204,7 +238,7 @@ export default function App() {
       } catch (e) {}
     }
 
-    const userMsg: Message = { id: Date.now().toString(), role: 'user', text, imageUrl: attachment, timestamp: new Date(), threadId };
+    const userMsg: Message = { id: Date.now().toString(), role: 'user', text: safeText, imageUrl: attachment, timestamp: new Date(), threadId };
     setMessages(prev => [...prev, userMsg]);
     await saveMessageToFirestore(threadId, userMsg);
     
@@ -214,7 +248,7 @@ export default function App() {
     setMessages(prev => [...prev, { id: assistantId, role: 'model', text: '', timestamp: new Date(), isStreaming: true, threadId }]);
 
     try {
-      const stream = sendMessageStreamToGemini(messages, text, currentModel, attachment);
+      const stream = sendMessageStreamToGemini(messages, safeText, currentModel, attachment);
       let finalMessage: Message | null = null;
       for await (const chunk of stream) {
         setMessages(prev => prev.map(m => {
@@ -283,6 +317,8 @@ export default function App() {
           <StartDashboard onAction={(p, m, t) => { 
             if (t === 'live') {
               setActiveTab('live');
+            } else if (t === 'prompts') {
+              setIsPromptManagerOpen(true);
             } else {
               if (m) setCurrentModel(m as ModelType); 
               handleSend(p); 
@@ -313,6 +349,7 @@ export default function App() {
         onNewChat={() => { setCurrentThreadId('main'); setMessages([]); setActiveTab('home'); }} 
         onOpenProfile={() => setIsProfileOpen(true)} 
         onOpenHistory={() => setIsHistoryOpen(true)}
+        onOpenPrompts={() => setIsPromptManagerOpen(true)}
         theme={preferences.theme} 
         userProfile={userProfile} 
       />
@@ -320,8 +357,21 @@ export default function App() {
         isOpen={isHistoryOpen} 
         onClose={() => setIsHistoryOpen(false)} 
         currentThreadId={currentThreadId} 
-        onSelectThread={(id) => { setCurrentThreadId(id); setActiveTab('home'); }} 
+        onSelectThread={(id) => { 
+          setCurrentThreadId(id); 
+          setActiveTab('home'); 
+        }} 
         onNewChat={() => { setCurrentThreadId('main'); setMessages([]); setActiveTab('home'); }} 
+      />
+      <PromptManager 
+        isOpen={isPromptManagerOpen} 
+        onClose={() => setIsPromptManagerOpen(false)} 
+        onSelectPrompt={(prompt) => {
+          setCurrentThreadId('main');
+          setMessages([]);
+          setActiveTab('home');
+          handleSend(prompt);
+        }}
       />
       <ArtifactCanvas 
         artifact={activeArtifact} 

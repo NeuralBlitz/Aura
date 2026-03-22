@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, Plus, Settings, Sparkles, Shield, Cpu, Activity, Zap, ShieldCheck, ShieldAlert, Wifi, MessageSquare } from 'lucide-react';
+import { ChevronDown, Plus, Settings, Sparkles, Shield, Cpu, Activity, Zap, ShieldCheck, ShieldAlert, Wifi, MessageSquare, BookOpen, Laugh } from 'lucide-react';
 import { ModelType, UserProfile, Theme } from '../types';
 import { telemetryService, TelemetryData } from '../services/telemetryService';
 
@@ -10,6 +10,7 @@ interface TopBarProps {
   onNewChat: () => void;
   onOpenProfile: () => void;
   onOpenHistory: () => void;
+  onOpenPrompts: () => void;
   theme: Theme;
   userProfile: UserProfile;
 }
@@ -20,6 +21,7 @@ const TopBar: React.FC<TopBarProps> = ({
   onNewChat, 
   onOpenProfile, 
   onOpenHistory,
+  onOpenPrompts,
   userProfile 
 }) => {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
@@ -36,7 +38,8 @@ const TopBar: React.FC<TopBarProps> = ({
     [ModelType.GEMINI_INTELLIGENCE]: { name: 'Aura Intelligence', icon: <Activity className="w-3.5 h-3.5" />, color: 'text-emerald-400', bg: 'bg-emerald-400/10' },
     [ModelType.CREATIVE_WRITING]: { name: 'Creative Writer', icon: <Sparkles className="w-3.5 h-3.5" />, color: 'text-fuchsia-400', bg: 'bg-fuchsia-400/10' },
     [ModelType.CODING_ASSISTANT]: { name: 'Code Assistant', icon: <Cpu className="w-3.5 h-3.5" />, color: 'text-cyan-400', bg: 'bg-cyan-400/10' },
-    [ModelType.GENERAL_KNOWLEDGE]: { name: 'General Knowledge', icon: <ShieldCheck className="w-3.5 h-3.5" />, color: 'text-amber-400', bg: 'bg-amber-400/10' }
+    [ModelType.GENERAL_KNOWLEDGE]: { name: 'General Knowledge', icon: <ShieldCheck className="w-3.5 h-3.5" />, color: 'text-amber-400', bg: 'bg-amber-400/10' },
+    [ModelType.HUMOROUS_COMPANION]: { name: 'Humorous Companion', icon: <Laugh className="w-3.5 h-3.5" />, color: 'text-orange-400', bg: 'bg-orange-400/10' }
   };
 
   const coherence = telemetry?.coherence || 100;
@@ -98,6 +101,13 @@ const TopBar: React.FC<TopBarProps> = ({
            <span className="text-[9px] font-black uppercase tracking-widest">{coherence}%</span>
         </div>
 
+        <button 
+          onClick={onOpenPrompts}
+          className="p-2.5 text-neutral-400 hover:text-white bg-white/5 border border-white/5 rounded-2xl transition-all active:scale-90 shadow-sm"
+          title="Custom Prompts"
+        >
+          <BookOpen className="w-5 h-5" />
+        </button>
         <button 
           onClick={onOpenHistory}
           className="p-2.5 text-neutral-400 hover:text-white bg-white/5 border border-white/5 rounded-2xl transition-all active:scale-90 shadow-sm"

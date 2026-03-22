@@ -21,10 +21,24 @@
         "id": { "type": "string" },
         "userId": { "type": "string" },
         "title": { "type": "string" },
+        "modelType": { "type": "string" },
         "updatedAt": { "type": "number" },
         "createdAt": { "type": "number" }
       },
       "required": ["id", "userId", "title", "updatedAt", "createdAt"]
+    },
+    "CustomPrompt": {
+      "title": "CustomPrompt",
+      "description": "A user-defined custom prompt",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "prompt": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "userId", "name", "prompt", "createdAt"]
     },
     "ChatMessage": {
       "title": "ChatMessage",
