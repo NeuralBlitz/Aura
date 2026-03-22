@@ -39,6 +39,20 @@
         "timestamp": { "type": "number" }
       },
       "required": ["id", "threadId", "userId", "role", "text", "timestamp"]
+    },
+    "ForgeSession": {
+      "title": "ForgeSession",
+      "description": "A spatial substrate forge session including agent state",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "code": { "type": "string" },
+        "messages": { "type": "array", "items": { "type": "object" } },
+        "plan": { "type": "array", "items": { "type": "object" } },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["id", "userId", "code", "messages", "plan", "updatedAt"]
     }
   },
   "firestore": {
@@ -53,6 +67,10 @@
     "/threads/{threadId}/messages/{messageId}": {
       "schema": { "$ref": "#/entities/ChatMessage" },
       "description": "Messages in a thread"
+    },
+    "/forge_sessions/{sessionId}": {
+      "schema": { "$ref": "#/entities/ForgeSession" },
+      "description": "Forge sessions"
     }
   }
 }

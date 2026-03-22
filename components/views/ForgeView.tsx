@@ -6,15 +6,69 @@ import {
   Fingerprint, Gauge, Layers, Maximize2, Minimize2, 
   Share2, AlertTriangle, Send, Bot, User, Code2, 
   Brain, ListChecks, TerminalSquare, Trash2, X,
-  ZapOff, Monitor, Trash
+  ZapOff, Monitor, Trash, RefreshCw, Save, History
 } from 'lucide-react';
 import { executeCode } from '../../services/forgeExecution';
 import ForgeConsole from '../ForgeConsole';
 import { LogEntry, ModelType, ForgeParam } from '../../types';
 import { GoogleGenAI } from "@google/genai";
 import ReactMarkdown from 'react-markdown';
+import { auth, db } from '../../services/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 
 const MemoizedConsole = React.memo(ForgeConsole);
+
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId: string | undefined;
+    email: string | null | undefined;
+    emailVerified: boolean | undefined;
+    isAnonymous: boolean | undefined;
+    tenantId: string | null | undefined;
+    providerInfo: {
+      providerId: string;
+      displayName: string | null;
+      email: string | null;
+      photoUrl: string | null;
+    }[];
+  }
+}
+
+const handleFirestoreError = (error: unknown, operationType: OperationType, path: string | null) => {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData.map(provider => ({
+        providerId: provider.providerId,
+        displayName: provider.displayName,
+        email: provider.email,
+        photoUrl: provider.photoURL
+      })) || []
+    },
+    operationType,
+    path
+  };
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+};
 
 interface ForgeViewProps {
   initialCode: string | null;
@@ -136,6 +190,9 @@ const ForgeView: React.FC<ForgeViewProps> = ({ initialCode, onClearInjected }) =
   const [params, setParams] = useState<ForgeParam[]>([]);
   const [activeRightTab, setActiveRightTab] = useState<'editor' | 'config'>('editor');
   const [activeView, setActiveView] = useState<'agent' | 'editor' | 'preview' | 'console'>('agent');
+  const [userId, setUserId] = useState<string | null>(null);
+  const [isAuthReady, setIsAuthReady] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -153,6 +210,64 @@ const ForgeView: React.FC<ForgeViewProps> = ({ initialCode, onClearInjected }) =
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
+  // Auth Listener
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUserId(user?.uid || null);
+      setIsAuthReady(true);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Persistence: Load Session
+  useEffect(() => {
+    if (!isAuthReady || !userId) return;
+
+    const loadSession = async () => {
+      const docRef = doc(db, 'forge_sessions', userId);
+      try {
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setCurrentCode(data.code || DEFAULT_CODE);
+          setMessages(data.messages || []);
+          setPlan(data.plan || []);
+        }
+      } catch (error) {
+        handleFirestoreError(error, OperationType.GET, `forge_sessions/${userId}`);
+      }
+    };
+
+    loadSession();
+  }, [isAuthReady, userId]);
+
+  // Persistence: Save Session
+  useEffect(() => {
+    if (!isAuthReady || !userId || isProcessing) return;
+
+    const saveSession = async () => {
+      setIsSaving(true);
+      const docRef = doc(db, 'forge_sessions', userId);
+      try {
+        await setDoc(docRef, {
+          id: userId,
+          userId,
+          code: currentCode,
+          messages,
+          plan,
+          updatedAt: Date.now()
+        }, { merge: true });
+      } catch (error) {
+        handleFirestoreError(error, OperationType.WRITE, `forge_sessions/${userId}`);
+      } finally {
+        setIsSaving(false);
+      }
+    };
+
+    const timeout = setTimeout(saveSession, 3000); // Debounce saves
+    return () => clearTimeout(timeout);
+  }, [currentCode, messages, plan, isAuthReady, userId, isProcessing]);
 
   // Parameter Extraction (Debounced)
   useEffect(() => {
@@ -215,6 +330,33 @@ const ForgeView: React.FC<ForgeViewProps> = ({ initialCode, onClearInjected }) =
     } catch (e: any) {
       console.warn(`Model ${models[modelIndex]} failed: ${e.message}. Falling back...`);
       return safeGenerateContent(params, modelIndex + 1);
+    }
+  };
+
+  const handleReset = async () => {
+    if (!confirm('Reset Codex memory and current plan?')) return;
+    setMessages([]);
+    setPlan([]);
+    if (userId) {
+      const docRef = doc(db, 'forge_sessions', userId);
+      try {
+        await setDoc(docRef, { messages: [], plan: [] }, { merge: true });
+      } catch (e) {
+        console.error('Failed to clear remote session:', e);
+      }
+    }
+  };
+
+  const resumeAgentLoop = () => {
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg?.role === 'agent' && lastMsg.status !== 'complete' && lastMsg.status !== 'error') {
+      // Find where we left off
+      const activeStep = plan.find(p => p.status === 'active' || p.status === 'pending');
+      if (activeStep) {
+        // We could resume here, but for now let's just re-trigger the loop with the last user prompt
+        const lastUserPrompt = [...messages].reverse().find(m => m.role === 'user')?.content;
+        if (lastUserPrompt) processAgentLoop(lastUserPrompt);
+      }
     }
   };
 
@@ -389,13 +531,24 @@ const ForgeView: React.FC<ForgeViewProps> = ({ initialCode, onClearInjected }) =
             <Brain className="w-5 h-5 text-blue-500 animate-pulse" />
             <h2 className="text-sm font-black uppercase tracking-[0.2em]">Codex Agent</h2>
           </div>
-          <button 
-            onClick={() => { setMessages([]); setPlan([]); }}
-            className="p-2 hover:bg-white/5 rounded-lg text-neutral-600 hover:text-red-400 transition-all"
-            title="Reset Codex Memory"
-          >
-            <RotateCcw className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            {messages.length > 0 && messages[messages.length - 1]?.status !== 'complete' && messages[messages.length - 1]?.status !== 'error' && !isProcessing && (
+              <button 
+                onClick={resumeAgentLoop}
+                className="p-2 hover:bg-white/5 rounded-lg text-blue-400 hover:text-blue-300 transition-all"
+                title="Resume Interrupted Task"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
+            )}
+            <button 
+              onClick={handleReset}
+              className="p-2 hover:bg-white/5 rounded-lg text-neutral-600 hover:text-red-400 transition-all"
+              title="Reset Codex Memory"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Plan Section */}
@@ -499,6 +652,12 @@ const ForgeView: React.FC<ForgeViewProps> = ({ initialCode, onClearInjected }) =
               <Code2 className="w-4 h-4 text-blue-500" />
               <span className="text-[10px] font-black uppercase tracking-widest text-white hidden sm:inline">Substrate Forge</span>
             </div>
+            {isSaving && (
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-blue-500/10 border border-blue-500/20 text-[8px] text-blue-400">
+                <RefreshCw className="w-3 h-3 animate-spin" />
+                <span>SYNCING</span>
+              </div>
+            )}
             <div className="h-4 w-px bg-white/10 hidden sm:block" />
             <div className="flex items-center gap-1 lg:gap-2">
               <button 

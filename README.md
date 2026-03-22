@@ -1,20 +1,51 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Aura OS v9.0
 
-# Run and deploy your AI Studio app
+A high-performance, mobile-first spatial substrate forge and agentic coding environment. Aura OS leverages the latest Gemini models to provide a seamless bridge between natural language and interactive spatial artifacts.
 
-This contains everything you need to run your app locally.
+## 🌌 Core Features
 
-View your app in AI Studio: https://ai.studio/apps/03d05b36-8778-420a-a81c-6c220c81ccf0
+### 🛠️ Substrate Forge
+A robust coding environment for creating spatial simulations.
+- **Interactive Canvas:** High-performance 2D/3D rendering substrate.
+- **Parameter Bridge:** Dynamic JSDoc-based parameters (`@param`) for real-time simulation control.
+- **CRT Visuals:** Optional retro-tech aesthetic for immersive development.
 
-## Run Locally
+### 🤖 Aura Codex
+An advanced agentic coding system that handles the heavy lifting.
+- **Multi-Phase Planning:** Codex architects a technical plan before writing a single line of code.
+- **Iterative Fabrication:** Step-by-step code generation with self-review and refinement.
+- **Neural Repair:** Automated runtime debugging and "healing" of generated code.
+- **Persistence:** Background session sync to Firestore for seamless continuity.
 
-**Prerequisites:**  Node.js
+### 📡 Integrated Ecosystem
+- **Nexus News:** AI-powered tech and science feed with Google Search grounding.
+- **Neural Forums:** Simulated real-time community discussions and system updates.
+- **Sovereign Vault:** Secure, encrypted storage for sensitive data and keys.
 
+## 🚀 Getting Started
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### 1. Environment Configuration
+Create a `.env` file based on `.env.example`:
+```env
+GEMINI_API_KEY=your_gemini_api_key_here
+```
+
+### 2. Firebase Integration
+Aura OS uses Firebase for persistence and authentication.
+- Ensure `firebase-applet-config.json` is populated with your project credentials.
+- Deploy security rules using the provided `firestore.rules`.
+
+### 3. Development
+```bash
+npm install
+npm run dev
+```
+
+## 🛠️ Tech Stack
+- **Frontend:** React, TypeScript, Tailwind CSS, Lucide Icons.
+- **AI Engine:** Google Generative AI (Gemini 3.1 Pro/Flash).
+- **Backend:** Express (Vite Middleware), Firestore, Firebase Auth.
+- **Graphics:** HTML5 Canvas, Three.js.
+
+---
+*Aura OS: The interface between thought and substrate.*
