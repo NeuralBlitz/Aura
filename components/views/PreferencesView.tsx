@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Settings, Bell, Zap, Layout, ArrowRight, Shield, Database, Trash2, Cpu, Eye, Palette, Lock, Activity, Download } from 'lucide-react';
 import { ModelType, UserPreferences } from '../../types';
+import ModuleLayout from '../ui/ModuleLayout';
 
 interface PreferencesViewProps {
   preferences: UserPreferences;
@@ -23,24 +24,25 @@ const PreferencesView: React.FC<PreferencesViewProps> = ({ preferences, onUpdate
   );
 
   return (
-    <div className="flex h-full bg-[#050505] font-sans overflow-hidden animate-fade-in">
-      {/* Sidebar */}
-      <div className="w-64 bg-black/50 border-r border-white/5 flex flex-col p-6 shrink-0">
-         <div className="flex items-center gap-3 mb-10 text-neutral-200">
-            <Settings className="w-6 h-6" />
-            <h2 className="text-sm font-black uppercase tracking-widest">Control Panel</h2>
-         </div>
-         <div className="space-y-1">
-            <SidebarBtn id="general" label="General" icon={Layout} />
-            <SidebarBtn id="neural" label="Neural Engine" icon={Cpu} />
-            <SidebarBtn id="appearance" label="Interface" icon={Palette} />
-            <SidebarBtn id="privacy" label="Security" icon={Lock} />
-         </div>
-      </div>
+    <ModuleLayout title="Control Panel" subtitle="System Configuration" status="ONLINE" icon={Settings} color="purple">
+      <div className="flex h-full bg-black/20 rounded-[2rem] border border-white/10 overflow-hidden shadow-2xl font-sans animate-fade-in w-full">
+        {/* Sidebar */}
+        <div className="w-64 bg-black/40 backdrop-blur-xl border-r border-white/5 flex flex-col p-6 shrink-0">
+           <div className="flex items-center gap-3 mb-10 text-neutral-200">
+              <Settings className="w-6 h-6 text-purple-500" />
+              <h2 className="text-sm font-black uppercase tracking-widest">Control Panel</h2>
+           </div>
+           <div className="space-y-1">
+              <SidebarBtn id="general" label="General" icon={Layout} />
+              <SidebarBtn id="neural" label="Neural Engine" icon={Cpu} />
+              <SidebarBtn id="appearance" label="Interface" icon={Palette} />
+              <SidebarBtn id="privacy" label="Security" icon={Lock} />
+           </div>
+        </div>
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-y-auto p-12">
-         <div className="max-w-2xl mx-auto space-y-12">
+        {/* Main Content */}
+        <div className="flex-1 overflow-y-auto p-12 no-scrollbar">
+           <div className="max-w-2xl mx-auto space-y-12">
             
             {activeTab === 'general' && (
                <section className="animate-slide-up space-y-6">
@@ -128,7 +130,8 @@ const PreferencesView: React.FC<PreferencesViewProps> = ({ preferences, onUpdate
             )}
          </div>
       </div>
-    </div>
+      </div>
+    </ModuleLayout>
   );
 };
 

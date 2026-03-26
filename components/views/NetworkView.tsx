@@ -3,6 +3,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Wifi, Globe, Shield, Terminal, Zap, Activity, RefreshCcw, Server, ShieldCheck, MapPin, Search, ChevronRight, Play } from 'lucide-react';
 import { executeTool } from '../../services/toolService';
 
+import ModuleLayout from '../ui/ModuleLayout';
+
 type NetTool = 'dashboard' | 'ping' | 'trace' | 'ports';
 
 const NetworkView: React.FC = () => {
@@ -60,6 +62,35 @@ const NetworkView: React.FC = () => {
     }, 1000);
   };
 
+  const runPortScan = () => {
+    setConsoleOutput([]);
+    addToConsole(`Starting Nmap 7.92 ( https://nmap.org ) at ${new Date().toLocaleString()}`);
+    addToConsole(`Nmap scan report for ${targetIp}`);
+    addToConsole("Host is up (0.0021s latency).");
+    addToConsole("Not shown: 995 closed tcp ports (reset)");
+    addToConsole("PORT     STATE SERVICE");
+    
+    const commonPorts = [
+      { port: '22/tcp', state: 'open', service: 'ssh' },
+      { port: '80/tcp', state: 'open', service: 'http' },
+      { port: '443/tcp', state: 'open', service: 'https' },
+      { port: '3000/tcp', state: 'open', service: 'ppp' },
+      { port: '8080/tcp', state: 'open', service: 'http-proxy' }
+    ];
+
+    let step = 0;
+    const interval = setInterval(() => {
+      if (step >= commonPorts.length) {
+        clearInterval(interval);
+        addToConsole("\nNmap done: 1 IP address (1 host up) scanned in 4.22 seconds");
+        return;
+      }
+      const p = commonPorts[step];
+      addToConsole(`${p.port.padEnd(8)} ${p.state.padEnd(7)} ${p.service}`);
+      step++;
+    }, 600);
+  };
+
   const SidebarBtn = ({ id, label, icon: Icon }: any) => (
     <button 
       onClick={() => setActiveTool(id)}
@@ -71,7 +102,8 @@ const NetworkView: React.FC = () => {
   );
 
   return (
-    <div className="flex h-full bg-[#050505] font-sans overflow-hidden animate-fade-in">
+    <ModuleLayout title="NetSec Ops" subtitle="Network Intelligence" status="SECURE UPLINK" icon={Shield} color="cyan">
+      <div className="flex h-full w-full bg-[#050505] font-sans overflow-hidden animate-fade-in">
       {/* Sidebar */}
       <div className="w-64 bg-black/50 border-r border-white/5 flex flex-col p-6 shrink-0">
          <div className="flex items-center gap-3 mb-10 text-cyan-500">
@@ -139,9 +171,11 @@ const NetworkView: React.FC = () => {
           </div>
         )}
 
-        {(activeTool === 'ping' || activeTool === 'trace') && (
+        {(activeTool === 'ping' || activeTool === 'trace' || activeTool === 'ports') && (
            <div className="max-w-3xl mx-auto space-y-6 animate-slide-up">
-              <h1 className="text-2xl font-black text-white italic tracking-tighter mb-6">{activeTool === 'ping' ? 'ICMP Echo Request' : 'Traceroute Path'}</h1>
+              <h1 className="text-2xl font-black text-white italic tracking-tighter mb-6">
+                {activeTool === 'ping' ? 'ICMP Echo Request' : activeTool === 'trace' ? 'Traceroute Path' : 'TCP Port Scan'}
+              </h1>
               
               <div className="flex gap-4">
                  <div className="flex-1 bg-black border border-white/10 rounded-xl px-4 py-3 flex items-center gap-3 focus-within:border-cyan-500/50 transition-all">
@@ -153,7 +187,7 @@ const NetworkView: React.FC = () => {
                     />
                  </div>
                  <button 
-                   onClick={activeTool === 'ping' ? runPing : runTrace}
+                   onClick={activeTool === 'ping' ? runPing : activeTool === 'trace' ? runTrace : runPortScan}
                    className="px-8 bg-cyan-600 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-cyan-500 transition-all shadow-lg shadow-cyan-600/20 active:scale-95 flex items-center gap-2"
                  >
                     <Play className="w-3 h-3 fill-current" /> Execute
@@ -163,23 +197,16 @@ const NetworkView: React.FC = () => {
               <div ref={consoleRef} className="h-[400px] bg-[#0A0A0A] border border-white/10 rounded-2xl p-6 overflow-y-auto font-mono text-xs shadow-inner">
                  <div className="text-neutral-500 mb-2">// Terminal Output Buffer</div>
                  {consoleOutput.map((line, i) => (
-                    <div key={i} className="text-cyan-400 mb-1">{line}</div>
+                    <div key={i} className="text-cyan-400 mb-1 whitespace-pre">{line}</div>
                  ))}
                  <div className="w-2 h-4 bg-cyan-500 animate-pulse mt-2" />
               </div>
            </div>
         )}
 
-        {activeTool === 'ports' && (
-           <div className="flex flex-col items-center justify-center h-full opacity-50">
-              <Server className="w-16 h-16 text-neutral-600 mb-6" />
-              <h3 className="text-lg font-black text-neutral-500 uppercase tracking-widest">Module Offline</h3>
-              <p className="text-xs text-neutral-600 mt-2">Port scanning requires elevated kernel privileges.</p>
-           </div>
-        )}
-
       </div>
-    </div>
+      </div>
+    </ModuleLayout>
   );
 };
 

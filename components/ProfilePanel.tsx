@@ -406,6 +406,24 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({
                     </div>
                   </div>
 
+                  {!hasPlatformKey && (
+                    <div className="mb-6 p-4 bg-orange-500/10 border border-orange-500/20 rounded-2xl">
+                      <div className="flex items-center gap-3 mb-3">
+                        <ShieldAlert className="w-5 h-5 text-orange-500" />
+                        <span className="text-xs font-black text-white uppercase tracking-tight">API Key Required</span>
+                      </div>
+                      <p className="text-[10px] text-neutral-400 font-medium mb-4 leading-relaxed">
+                        A paid Gemini API key is required for advanced neural processing (Veo/Imagen).
+                      </p>
+                      <button 
+                        onClick={onSelectKey}
+                        className="w-full py-3 bg-orange-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg hover:bg-orange-500 transition-all"
+                      >
+                        Select API Key
+                      </button>
+                    </div>
+                  )}
+
                   {vaultStatus === 'unlocked' && (
                     <div className="mb-8 animate-fade-in">
                        <MemoryMap />

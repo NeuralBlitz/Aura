@@ -48,6 +48,7 @@ import GlobalCommandPalette from './components/GlobalCommandPalette';
 import AuthScreen from './components/AuthScreen';
 import ChatHistorySidebar from './components/ChatHistorySidebar';
 import PromptManager from './components/PromptManager';
+import { motion, AnimatePresence } from 'motion/react';
 import { Message, ModelType, Artifact, UserPreferences, UserProfile, Tab, MorphingState, Thread, CustomPrompt } from './types';
 import { sendMessageStreamToGemini } from './services/geminiService';
 import { telemetryService, TelemetryData } from './services/telemetryService';
@@ -86,6 +87,27 @@ export default function App() {
     defaultModel: ModelType.GEMINI_FLASH, theme: 'dark', accentColor: 'blue',
     notificationsEnabled: true, autoOpenArtifacts: true, installedModules: ['news', 'forums', 'focus', 'network', 'utility', 'translate', 'health', 'projects', 'notes', 'market', 'sonic', 'dreamstream', 'cipher', 'biolink'], isVaultEnabled: false
   });
+
+  const [hasPlatformKey, setHasPlatformKey] = useState(false);
+
+  useEffect(() => {
+    const checkKey = async () => {
+      if ((window as any).aistudio?.hasSelectedApiKey) {
+        const hasKey = await (window as any).aistudio.hasSelectedApiKey();
+        setHasPlatformKey(hasKey);
+      } else {
+        setHasPlatformKey(true); // Fallback for environments without the selector
+      }
+    };
+    checkKey();
+  }, []);
+
+  const handleSelectKey = async () => {
+    if ((window as any).aistudio?.openSelectKey) {
+      await (window as any).aistudio.openSelectKey();
+      setHasPlatformKey(true); // Assume success per guidelines
+    }
+  };
 
   useEffect(() => { 
     storageService.init();
@@ -420,13 +442,24 @@ export default function App() {
         messages={messages} 
         vaultStatus="uninitialized" 
         onVaultStatusChange={() => {}} 
-        hasPlatformKey={true} 
-        onSelectKey={() => {}} 
+        hasPlatformKey={hasPlatformKey} 
+        onSelectKey={handleSelectKey} 
         onLaunchTool={(view) => setActiveTab(view)} 
         onSignOut={() => auth.signOut()}
       />
       <main className={`flex-1 overflow-y-auto pt-16 pb-48 no-scrollbar scroll-smooth relative z-10 ${activeTab === 'home' ? 'bg-black' : 'bg-[#050505]'}`}>
-        {renderContent()}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            className="h-full"
+          >
+            {renderContent()}
+          </motion.div>
+        </AnimatePresence>
       </main>
       {activeTab === 'home' && (
         <div className="fixed bottom-16 left-0 right-0 z-[70] px-6 pointer-events-none">

@@ -16,6 +16,7 @@ import ReactMarkdown from 'react-markdown';
 import { auth, db } from '../../services/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
+import ModuleLayout from '../ui/ModuleLayout';
 
 const MemoizedConsole = React.memo(ForgeConsole);
 
@@ -656,7 +657,14 @@ const ForgeView: React.FC<ForgeViewProps> = ({ initialCode, onClearInjected }) =
   };
 
   return (
-    <div className="flex flex-col lg:flex-row h-full bg-[#030303] text-white font-mono selection:bg-blue-500/30 overflow-hidden relative">
+    <ModuleLayout 
+      title="Substrate Forge" 
+      subtitle="Neural Code Synthesis" 
+      status={isProcessing ? "SYNTHESIZING" : "SYSTEM NOMINAL"} 
+      icon={Terminal} 
+      color="blue"
+    >
+      <div className="flex flex-col lg:flex-row h-full bg-black/20 text-white font-mono selection:bg-blue-500/30 overflow-hidden relative w-full">
       {/* --- Left Sidebar: Agent Control (Desktop) / Agent Tab (Mobile) --- */}
       <div className={`
         w-full lg:w-96 border-r border-white/10 flex flex-col bg-black/40 backdrop-blur-xl z-20 transition-all duration-300
@@ -973,7 +981,8 @@ const ForgeView: React.FC<ForgeViewProps> = ({ initialCode, onClearInjected }) =
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
-    </div>
+      </div>
+    </ModuleLayout>
   );
 };
 

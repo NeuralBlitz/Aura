@@ -6,6 +6,8 @@ import {
   AlignLeft, ArrowLeft
 } from 'lucide-react';
 
+import ModuleLayout from '../ui/ModuleLayout';
+
 interface CodexVolume {
   id: string;
   title: string;
@@ -71,7 +73,8 @@ const ScriptoriumView: React.FC = () => {
   );
 
   return (
-    <div className="flex h-full bg-[#050505] font-sans overflow-hidden animate-fade-in">
+    <ModuleLayout title="Codex" subtitle="Technical & Philosophical Archives" status="READ ONLY" icon={Library} color="purple">
+      <div className="flex h-full w-full bg-[#050505] font-sans overflow-hidden animate-fade-in">
       {/* Sidebar */}
       <div className={`bg-black/50 border-r border-white/5 flex flex-col transition-all duration-300 ${isSidebarOpen ? 'w-80' : 'w-0 overflow-hidden'}`}>
         <div className="p-6 border-b border-white/5">
@@ -188,6 +191,7 @@ const ScriptoriumView: React.FC = () => {
          </div>
       </div>
     </div>
+  </ModuleLayout>
   );
 };
 

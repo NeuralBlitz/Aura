@@ -2,6 +2,7 @@
 import React from 'react';
 import { AURA_MODULES } from '../ModuleRegistry';
 import { UserPreferences, UserProfile, Tab, ModuleDefinition } from '../../types';
+import ModuleLayout from '../ui/ModuleLayout';
 import { 
   Search, Clock, Sparkles, Activity, Zap, 
   TrendingUp, Cpu, Gauge, Globe, Shield, Newspaper,
@@ -50,9 +51,10 @@ const ModuleCard: React.FC<ModuleCardProps> = ({ module, onLaunch }) => (
 
 const NexusView: React.FC<NexusViewProps> = ({ preferences, userProfile, onLaunch }) => {
   return (
-    <div className="pt-6 pb-40 px-6 animate-fade-in font-sans max-w-7xl mx-auto">
-      {/* Search HUD */}
-      <div className="relative mb-16 group">
+    <ModuleLayout title="Nexus" subtitle="Universal Substrate" status="ONLINE" icon={Network} color="blue">
+      <div className="pt-6 pb-40 px-6 animate-fade-in font-sans max-w-7xl mx-auto h-full overflow-y-auto no-scrollbar w-full">
+        {/* Search HUD */}
+        <div className="relative mb-16 group">
         <div className="absolute inset-0 bg-blue-500/5 blur-[100px] opacity-50 group-focus-within:opacity-100 transition-opacity" />
         <Search className="absolute left-8 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-500 group-focus-within:text-blue-400 transition-colors" />
         <input 
@@ -213,7 +215,8 @@ const NexusView: React.FC<NexusViewProps> = ({ preferences, userProfile, onLaunc
             </div>
          </div>
       </div>
-    </div>
+      </div>
+    </ModuleLayout>
   );
 };
 

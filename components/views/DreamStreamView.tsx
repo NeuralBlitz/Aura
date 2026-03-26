@@ -1,6 +1,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { Eye, Sparkles } from 'lucide-react';
+import ModuleLayout from '../ui/ModuleLayout';
 
 const DreamStreamView: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -58,18 +59,14 @@ const DreamStreamView: React.FC = () => {
   }, []);
 
   return (
-    <div className="pt-6 pb-48 px-6 max-w-4xl mx-auto animate-fade-in font-sans h-full flex flex-col">
-      <div className="flex items-center gap-4 mb-8 shrink-0">
-        <div className="p-4 bg-purple-600/10 border border-purple-500/20 rounded-[1.8rem] shadow-xl">
-           <Eye className="w-8 h-8 text-purple-500" />
-        </div>
-        <div>
-          <h1 className="text-4xl font-black text-white tracking-tighter italic">DreamStream</h1>
-          <p className="text-xs text-neutral-500 font-bold uppercase tracking-[0.2em] mt-1">Oneiric Visualization Engine</p>
-        </div>
-      </div>
-
-      <div className="flex-1 glass-morphic border border-white/5 rounded-[3rem] relative overflow-hidden group shadow-2xl">
+    <ModuleLayout
+      title="DreamStream"
+      subtitle="Oneiric Visualization Engine"
+      status="RENDERING"
+      icon={Eye}
+      color="purple"
+    >
+      <div className="flex-1 glass-morphic border border-white/5 rounded-[3rem] relative overflow-hidden group shadow-2xl h-full min-h-[500px] w-full">
          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
          <div className="absolute bottom-10 left-0 right-0 flex justify-center">
             <div className="bg-black/60 backdrop-blur-xl border border-white/10 px-8 py-4 rounded-full flex items-center gap-4">
@@ -78,7 +75,7 @@ const DreamStreamView: React.FC = () => {
             </div>
          </div>
       </div>
-    </div>
+    </ModuleLayout>
   );
 };
 

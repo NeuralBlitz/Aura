@@ -1,12 +1,62 @@
 
-import React from 'react';
-import { Search, Globe, ExternalLink, Github, Cpu, Database, Network, Workflow, Terminal, Layers, Zap, Library } from 'lucide-react';
+import React, { useState } from 'react';
+import { Search, Globe, ExternalLink, Github, Cpu, Database, Network, Workflow, Terminal, Layers, Zap, Library, Loader2, AlertCircle } from 'lucide-react';
+import { GoogleGenAI } from "@google/genai";
 
 interface SearchViewProps {
   onNavigateToScriptorium?: () => void;
 }
 
 const SearchView: React.FC<SearchViewProps> = ({ onNavigateToScriptorium }) => {
+  const [query, setQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [results, setResults] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSearch = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!query.trim()) return;
+
+    setIsSearching(true);
+    setError(null);
+    setResults([]);
+
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `Search for information about: ${query}. Provide a concise summary and list key findings with sources.`,
+        config: {
+          tools: [{ googleSearch: {} }],
+        },
+      });
+
+      const text = response.text;
+      const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
+      
+      const searchResults = chunks?.map((chunk: any) => ({
+        title: chunk.web?.title || 'Search Result',
+        url: chunk.web?.uri,
+        summary: text.substring(0, 200) + '...', // Simplified summary from the model's text
+      })).filter((res: any) => res.url) || [];
+
+      setResults(searchResults);
+      if (searchResults.length === 0 && text) {
+        // If no explicit chunks but we have text, show the text as a result
+        setResults([{
+          title: "Neural Summary",
+          summary: text,
+          isSummary: true
+        }]);
+      }
+    } catch (err: any) {
+      console.error("Search failed:", err);
+      setError(err.message || "Neural link failed. Please try again.");
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
   const identityNodes = [
     {
       title: "NeuralBlitz Scriptorium",
@@ -81,14 +131,63 @@ const SearchView: React.FC<SearchViewProps> = ({ onNavigateToScriptorium }) => {
 
   return (
     <div className="pt-4 pb-24 px-4 min-h-full transition-colors animate-fade-in">
-      <div className="relative mb-10">
+      <form onSubmit={handleSearch} className="relative mb-10">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" />
         <input 
           type="text" 
+          value={query}
+          onChange={e => setQuery(e.target.value)}
           placeholder="Query the global neural network..." 
-          className="w-full bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl py-4 pl-12 pr-4 text-neutral-800 dark:text-white placeholder-neutral-500 focus:outline-none focus:border-blue-500 transition-all shadow-sm focus:shadow-blue-500/10 font-medium"
+          className="w-full bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl py-4 pl-12 pr-12 text-neutral-800 dark:text-white placeholder-neutral-500 focus:outline-none focus:border-blue-500 transition-all shadow-sm focus:shadow-blue-500/10 font-medium"
         />
-      </div>
+        {isSearching && (
+          <div className="absolute right-4 top-1/2 -translate-y-1/2">
+            <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+          </div>
+        )}
+      </form>
+
+      {error && (
+        <div className="mb-8 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-3 text-red-500 text-sm">
+          <AlertCircle className="w-5 h-5" />
+          {error}
+        </div>
+      )}
+
+      {results.length > 0 && (
+        <div className="mb-10 animate-slide-up">
+          <div className="flex items-center gap-3 mb-6 px-2">
+            <div className="w-1 h-4 bg-cyan-600 rounded-full" />
+            <h2 className="text-xs font-black text-neutral-500 dark:text-neutral-400 uppercase tracking-[0.25em]">
+              Neural Search Results
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 gap-4">
+            {results.map((res, idx) => (
+              <div key={idx} className="p-6 rounded-[2.5rem] bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-xl">
+                <div className="flex items-start justify-between mb-2">
+                  <h3 className="font-black text-lg text-neutral-900 dark:text-white">
+                    {res.title}
+                  </h3>
+                  {res.url && (
+                    <a href={res.url} target="_blank" rel="noopener noreferrer" className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-xl transition-all">
+                      <ExternalLink className="w-4 h-4 text-blue-500" />
+                    </a>
+                  )}
+                </div>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed font-medium">
+                  {res.summary}
+                </p>
+                {res.url && (
+                  <div className="mt-4 text-[10px] font-mono text-neutral-400 truncate">
+                    {res.url}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="mb-10">
         <div className="flex items-center gap-3 mb-6 px-2">

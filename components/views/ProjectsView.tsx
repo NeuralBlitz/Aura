@@ -3,6 +3,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Project, Task, ProjectMember, TaskComment } from '../../types';
 import { storageService } from '../../services/storageService';
 import { GoogleGenAI } from "@google/genai";
+import ModuleLayout from '../ui/ModuleLayout';
+import MemberAvatar from '../ui/MemberAvatar';
+import PriorityBadge from '../ui/PriorityBadge';
 import { 
   Plus, Trash2, CheckCircle2, Circle, 
   ListChecks, Search, X, Tag,
@@ -13,36 +16,6 @@ import {
   FolderKanban, Settings, ChevronLeft,
   Briefcase, UserPlus, Filter, SortAsc, Clock, AlertCircle
 } from 'lucide-react';
-
-// --- Sub-Components ---
-
-const MemberAvatar: React.FC<{ member?: ProjectMember, size?: 'sm' | 'md' | 'lg', className?: string }> = ({ member, size = 'md', className = '' }) => {
-  const sizeClasses = { sm: 'w-6 h-6 text-[9px]', md: 'w-8 h-8 text-[10px]', lg: 'w-10 h-10 text-xs' };
-  if (!member) return <div className={`${sizeClasses[size]} rounded-full bg-neutral-800 border border-white/10 flex items-center justify-center text-neutral-500 ${className}`}>?</div>;
-  return (
-    <img 
-      src={member.avatar} 
-      alt={member.name} 
-      title={member.name}
-      className={`${sizeClasses[size]} rounded-full object-cover border-2 border-black ring-1 ring-white/10 ${className}`} 
-    />
-  );
-};
-
-const PriorityBadge: React.FC<{ priority: Task['priority'] }> = ({ priority }) => {
-  const config = {
-    high: { icon: ArrowUp, color: 'text-red-500', bg: 'bg-red-500/10', border: 'border-red-500/20' },
-    medium: { icon: Minus, color: 'text-amber-500', bg: 'bg-amber-500/10', border: 'border-amber-500/20' },
-    low: { icon: ArrowDown, color: 'text-blue-500', bg: 'bg-blue-500/10', border: 'border-blue-500/20' }
-  };
-  const c = config[priority] || config.medium;
-  return (
-    <div className={`flex items-center gap-1 px-2 py-1 rounded-lg border ${c.bg} ${c.border} ${c.color}`}>
-      <c.icon className="w-3 h-3" />
-      <span className="text-[9px] font-black uppercase tracking-widest">{priority}</span>
-    </div>
-  );
-};
 
 // --- Main View ---
 
@@ -293,10 +266,11 @@ const ProjectsView: React.FC = () => {
   }, [activeProject, searchQuery, filterMember, filterPriority, sortBy]);
 
   return (
-    <div className="flex h-full bg-[#050505] overflow-hidden">
-      
-      {/* --- Projects Sidebar --- */}
-      <div className={`border-r border-white/5 bg-black/50 backdrop-blur-xl transition-all duration-300 flex flex-col shrink-0 ${isSidebarOpen ? 'w-64' : 'w-0 overflow-hidden'}`}>
+    <ModuleLayout title="Workspaces" subtitle="Project Management" status="SYNCED" icon={Briefcase} color="blue">
+      <div className="flex h-full w-full bg-black/20 overflow-hidden">
+        
+        {/* --- Projects Sidebar --- */}
+        <div className={`border-r border-white/5 bg-black/40 backdrop-blur-xl transition-all duration-300 flex flex-col shrink-0 ${isSidebarOpen ? 'w-64' : 'w-0 overflow-hidden'}`}>
         <div className="p-6 border-b border-white/5 flex items-center justify-between">
            <h2 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2">
               <Briefcase className="w-4 h-4 text-blue-500" />
@@ -895,7 +869,8 @@ const ProjectsView: React.FC = () => {
            </div>
         </div>
       )}
-    </div>
+      </div>
+    </ModuleLayout>
   );
 };
 

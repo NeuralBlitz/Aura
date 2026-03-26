@@ -1,7 +1,8 @@
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Mic, MicOff, Video, VideoOff, PhoneOff, Settings2, Zap, Activity, RefreshCw, Monitor, MonitorOff } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, PhoneOff, Settings2, Zap, Activity, RefreshCw, Monitor, MonitorOff, AlertTriangle } from 'lucide-react';
 import { LiveClient, LiveStatus } from '../../services/liveClient';
+import ModuleLayout from '../ui/ModuleLayout';
 
 interface LiveViewProps {
   onClose: () => void;
@@ -239,187 +240,185 @@ const LiveView: React.FC<LiveViewProps> = ({ onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[60] bg-black text-white flex flex-col overflow-hidden animate-fade-in">
-      {/* Background / Camera Layer */}
-      <div className="absolute inset-0 z-0">
-        {(isCamOn || isScreenSharing) ? (
-           <video ref={videoRef} className="w-full h-full object-cover opacity-50" muted playsInline />
-        ) : (
-           <div className="w-full h-full bg-gradient-to-br from-neutral-900 via-black to-blue-900/20" />
-        )}
-        
-        {/* Motion Detection Overlay */}
-        {isMotionDetected && (
-          <div className="absolute inset-0 pointer-events-none z-10">
-            <div className="absolute inset-0 border-[20px] border-cyan-500/10 animate-pulse" />
-            <div className="absolute top-0 left-0 w-full h-1 bg-cyan-500/40 shadow-[0_0_20px_rgba(6,182,212,0.6)] animate-scan" />
-            <div className="absolute bottom-32 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-cyan-500/30">
-              <div className="w-2 h-2 bg-cyan-500 rounded-full animate-ping" />
-              <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-[0.4em]">Neural Scan Active</span>
+    <ModuleLayout title="Aura Live" subtitle="Neural Presence" status={status.toUpperCase()} icon={Mic} color="blue">
+      <div className="flex flex-col h-full bg-[#050505] font-sans relative overflow-hidden w-full">
+        {/* Background Visualizer */}
+        <div className="absolute inset-0 pointer-events-none opacity-30">
+          <div className="absolute inset-0 bg-gradient-to-b from-blue-600/10 via-transparent to-transparent" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-blue-500/5 blur-[120px] rounded-full animate-pulse" />
+        </div>
+
+        {/* Header HUD */}
+        <div className="relative z-10 p-8 flex items-center justify-between">
+          <div className="flex items-center gap-6">
+            <div className="relative">
+               <div className="absolute inset-0 bg-blue-500 blur-[20px] opacity-20 rounded-full animate-pulse" />
+               <div className="relative w-16 h-16 glass-morphic rounded-2xl flex items-center justify-center bg-blue-600/20 border border-blue-500/30">
+                  <Zap className="w-8 h-8 text-blue-400 animate-pulse" />
+               </div>
+            </div>
+            <div>
+               <h1 className="text-2xl font-black text-white italic tracking-tighter">Aura Live</h1>
+               <div className="flex items-center gap-2 mt-1">
+                  <span className={`w-2 h-2 rounded-full ${status === 'connected' ? 'bg-emerald-500 animate-pulse' : 'bg-neutral-600'}`} />
+                  <span className="text-[10px] font-black text-neutral-500 uppercase tracking-[0.2em]">{status}</span>
+               </div>
             </div>
           </div>
-        )}
 
-        <canvas ref={canvasRef} className="hidden" />
-      </div>
-
-      {/* Grid Overlay */}
-      <div className="absolute inset-0 z-0 opacity-10 pointer-events-none" 
-           style={{ backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px)', backgroundSize: '50px 50px' }}>
-      </div>
-
-      {/* Header */}
-      <div className="relative z-10 flex items-center justify-between p-6">
-        <div className="flex items-center gap-3">
-          <div className={`w-2 h-2 rounded-full ${status === 'connected' ? 'bg-green-500 animate-pulse' : (status === 'connecting' || status === 'reconnecting') ? 'bg-yellow-500' : 'bg-red-500'}`} />
-          <span className="text-xs font-black uppercase tracking-[0.3em] text-neutral-400">
-            {status === 'connected' ? 'Aura Live // Online' : status === 'connecting' ? 'Establishing Neural Link...' : status === 'reconnecting' ? 'Re-establishing Link...' : 'Offline'}
-          </span>
+          <div className="flex items-center gap-4">
+             <div className="px-4 py-2 glass-morphic bg-white/5 border border-white/10 rounded-xl flex items-center gap-3">
+                <Activity className="w-4 h-4 text-blue-500" />
+                <span className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Neural Sync: 99.8%</span>
+             </div>
+             <button onClick={() => setInteractionMode('observing')} className="p-3 glass-morphic bg-white/5 border border-white/10 rounded-xl text-neutral-400 hover:text-white transition-all">
+                <Settings2 className="w-5 h-5" />
+             </button>
+          </div>
         </div>
-        <div className="flex items-center gap-4">
-          {error && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-red-500 font-bold">{error}</span>
+
+        {/* Main Viewport */}
+        <div className="flex-1 relative z-10 flex flex-col items-center justify-center p-8">
+          <div className="relative w-full max-w-4xl aspect-video glass-morphic bg-black/40 rounded-[3rem] border border-white/10 overflow-hidden shadow-2xl group">
+            {/* Video Feed */}
+            <video 
+              ref={videoRef} 
+              autoPlay 
+              playsInline 
+              muted 
+              className={`w-full h-full object-cover transition-opacity duration-1000 ${isCamOn || isScreenSharing ? 'opacity-100' : 'opacity-0'}`}
+            />
+            
+            {/* Canvas for motion detection (hidden) */}
+            <canvas ref={canvasRef} className="hidden" />
+
+            {/* Placeholder / Offline State */}
+            {(!isCamOn && !isScreenSharing) && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900/40 backdrop-blur-3xl">
+                <div className="w-32 h-32 rounded-full bg-blue-600/10 border border-blue-500/20 flex items-center justify-center mb-8">
+                   <MonitorOff className="w-12 h-12 text-neutral-600" />
+                </div>
+                <p className="text-xs font-black text-neutral-500 uppercase tracking-[0.3em]">Visual Substrate Offline</p>
+              </div>
+            )}
+
+            {/* Overlay HUD */}
+            <div className="absolute inset-0 pointer-events-none p-8 flex flex-col justify-between">
+               <div className="flex justify-between items-start">
+                  <div className="flex gap-3">
+                     <div className="px-3 py-1.5 bg-black/60 backdrop-blur-md border border-white/10 rounded-xl flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                        <span className="text-[9px] font-black text-white uppercase tracking-widest">Live Feed</span>
+                     </div>
+                     {isMotionDetected && (
+                        <div className="px-3 py-1.5 bg-blue-600/80 backdrop-blur-md border border-blue-500/30 rounded-xl flex items-center gap-2 animate-bounce">
+                           <Zap className="w-3 h-3 text-white" />
+                           <span className="text-[9px] font-black text-white uppercase tracking-widest">Motion Detected</span>
+                        </div>
+                     )}
+                  </div>
+                  <div className="px-3 py-1.5 bg-black/60 backdrop-blur-md border border-white/10 rounded-xl">
+                     <span className="text-[9px] font-mono text-neutral-400 uppercase tracking-widest">00:00:00</span>
+                  </div>
+               </div>
+
+               <div className="flex justify-center">
+                  <div ref={visualizerRef} className="flex items-end gap-1 h-12">
+                    {Array.from({ length: 32 }).map((_, i) => (
+                       <div 
+                          key={i} 
+                          className="w-1 bg-blue-500/40 rounded-full transition-all duration-75"
+                          style={{ 
+                            height: `${Math.max(4, volume * Math.random() * 100)}%`,
+                            opacity: 0.3 + (volume * 0.7)
+                          }} 
+                       />
+                    ))}
+                  </div>
+               </div>
+            </div>
+
+            {/* Error State */}
+            {error && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-red-900/20 backdrop-blur-3xl p-12 text-center">
+                <AlertTriangle className="w-16 h-16 text-red-500 mb-6" />
+                <h3 className="text-xl font-black text-white mb-2 italic">Neural Link Failure</h3>
+                <p className="text-xs text-red-400/80 mb-8 max-w-xs">{error}</p>
+                <button onClick={handleRetry} className="px-8 py-3 bg-red-600 hover:bg-red-500 rounded-xl text-xs font-black text-white uppercase tracking-widest transition-all">
+                   Retry Handshake
+                </button>
+              </div>
+            )}
+          </div>
+
+          <p className="mt-12 text-sm font-medium text-neutral-400 animate-pulse transition-all">
+             {status === 'connected' ? (
+               interactionMode === 'motion' ? 'Analyzing Visual Delta...' :
+               interactionMode === 'idle_chat' ? 'Sparking Conversation...' :
+               volume > 0.1 ? 'Speaking...' : 'Observing Workspace...'
+             ) : status === 'reconnecting' ? 'Recovering Connection...' : 'Connecting...'}
+          </p>
+        </div>
+
+        {/* Controls */}
+        <div className="relative z-10 p-8 pb-12 flex items-center justify-center gap-4 sm:gap-6 flex-wrap">
+          <button 
+            onClick={toggleMic}
+            className={`p-5 rounded-full border-2 transition-all ${isMicOn ? 'bg-white/10 border-white/20 text-white hover:bg-white/20' : 'bg-red-500/20 border-red-500 text-red-500'}`}
+          >
+            {isMicOn ? <Mic className="w-6 h-6" /> : <MicOff className="w-6 h-6" />}
+          </button>
+
+          <button 
+            onClick={onClose}
+            className="p-6 rounded-full bg-red-600 text-white shadow-[0_0_30px_rgba(220,38,38,0.4)] hover:bg-red-500 hover:scale-105 transition-all active:scale-95"
+          >
+            <PhoneOff className="w-8 h-8" />
+          </button>
+
+          <button 
+            onClick={() => {
+              setIsScreenSharing(!isScreenSharing);
+              if (!isScreenSharing) setIsCamOn(false);
+            }}
+            className={`p-5 rounded-full border-2 transition-all ${isScreenSharing ? 'bg-blue-600 border-blue-500 text-white shadow-[0_0_20px_rgba(59,130,246,0.5)]' : 'bg-transparent border-white/10 text-neutral-400 hover:border-white/30'}`}
+            title="Share Screen"
+          >
+            {isScreenSharing ? <Monitor className="w-6 h-6" /> : <MonitorOff className="w-6 h-6" />}
+          </button>
+
+          <button 
+            onClick={() => {
+              setIsCamOn(!isCamOn);
+              if (!isCamOn) setIsScreenSharing(false);
+            }}
+            className={`p-5 rounded-full border-2 transition-all ${isCamOn ? 'bg-white/10 border-white/20 text-white hover:bg-white/20' : 'bg-transparent border-white/10 text-neutral-400 hover:border-white/30'}`}
+            title="Toggle Camera"
+          >
+            {isCamOn ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
+          </button>
+
+          {isCamOn && (
+            <div className="flex gap-4">
               <button 
-                onClick={handleRetry}
-                className="p-1 rounded bg-red-500/20 hover:bg-red-500/40 text-red-500 transition-colors"
-                title="Retry Connection"
+                onClick={toggleFlash}
+                className={`p-5 rounded-full border-2 transition-all ${isFlashOn ? 'bg-blue-600 border-blue-500 text-white shadow-[0_0_15px_rgba(59,130,246,0.5)]' : 'bg-white/10 border-white/20 text-neutral-400 hover:text-white'}`}
+                title="Toggle Flashlight"
               >
-                <RefreshCw className="w-3 h-3" />
+                <Zap className={`w-6 h-6 ${isFlashOn ? 'animate-pulse' : ''}`} />
+              </button>
+              <button 
+                onClick={toggleCameraFlip}
+                className="p-5 rounded-full border-2 bg-white/10 border-white/20 text-white hover:bg-white/20 transition-all active:rotate-180 duration-500"
+                title="Flip Camera"
+              >
+                <RefreshCw className="w-6 h-6" />
               </button>
             </div>
           )}
-          {status === 'connected' && (
-            <div className={`px-3 py-1 rounded-full border text-[10px] font-bold uppercase tracking-wider transition-colors ${
-              interactionMode === 'motion' ? 'border-cyan-500/50 bg-cyan-500/10 text-cyan-400' :
-              interactionMode === 'idle_chat' ? 'border-purple-500/50 bg-purple-500/10 text-purple-400' :
-              'border-white/10 bg-white/5 text-neutral-400'
-            }`}>
-              {interactionMode === 'motion' ? 'Motion Detected' : interactionMode === 'idle_chat' ? 'Proactive Mode' : 'Monitoring'}
-            </div>
-          )}
-          <div className="px-3 py-1 rounded-full border border-white/10 bg-white/5 text-[10px] font-bold">
-            GEMINI 2.5 FLASH
-          </div>
         </div>
       </div>
-
-      {/* Main Visualizer */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center">
-        {/* The Orb */}
-        <div className="relative w-64 h-64 flex items-center justify-center">
-          {/* Outer Rings */}
-          <div className={`absolute inset-0 rounded-full border border-blue-500/30 transition-all duration-75 ease-linear`} 
-               style={{ transform: `scale(${1 + volume * 0.5})` }} />
-          <div className={`absolute inset-4 rounded-full border border-cyan-500/20 transition-all duration-100 ease-linear`} 
-               style={{ transform: `scale(${1 + volume * 0.3}) rotate(${volume * 360}deg)` }} />
-          
-          {/* Core */}
-          <div className={`relative w-32 h-32 rounded-full bg-black border border-white/10 flex items-center justify-center overflow-hidden transition-all duration-500 ${
-            interactionMode === 'idle_chat' ? 'shadow-[0_0_60px_rgba(168,85,247,0.6)]' :
-            interactionMode === 'motion' ? 'shadow-[0_0_60px_rgba(6,182,212,0.6)]' :
-            'shadow-[0_0_50px_rgba(59,130,246,0.5)]'
-          }`}>
-             <div className={`w-24 h-24 rounded-full bg-gradient-to-tr blur-md transition-all duration-500 ${
-               interactionMode === 'idle_chat' ? 'from-purple-600 to-pink-600' :
-               interactionMode === 'motion' ? 'from-cyan-600 to-blue-600' :
-               'from-blue-600 to-purple-600'
-             } ${volume > 0.05 ? 'opacity-100' : 'opacity-40'}`} />
-             
-             {/* Mascot Eyes */}
-             <div className="absolute inset-0 flex items-center justify-center gap-6">
-                <div className="w-4 h-4 bg-white rounded-full shadow-[0_0_10px_white] transition-all duration-75" 
-                     style={{ height: `${Math.max(2, 16 - volume * 40)}px`, transform: `translateY(${volume * -10}px)` }} />
-                <div className="w-4 h-4 bg-white rounded-full shadow-[0_0_10px_white] transition-all duration-75" 
-                     style={{ height: `${Math.max(2, 16 - volume * 40)}px`, transform: `translateY(${volume * -10}px)` }} />
-             </div>
-
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
-                <Zap className={`w-10 h-10 text-white transition-all ${(status === 'connecting' || status === 'reconnecting') ? 'animate-bounce' : ''}`} />
-             </div>
-          </div>
-          
-          {/* Waveform Visualization (Simulated CSS) */}
-          <div className="absolute -bottom-24 left-1/2 -translate-x-1/2 flex items-end gap-1 h-12">
-             {[...Array(12)].map((_, i) => (
-               <div key={i} 
-                    className="w-1.5 bg-blue-500 rounded-full transition-all duration-75"
-                    style={{ 
-                      height: `${Math.max(10, Math.random() * volume * 100 + 10)}%`, 
-                      opacity: 0.5 + volume 
-                    }} 
-               />
-             ))}
-          </div>
-        </div>
-        
-        <p className="mt-20 text-sm font-medium text-neutral-400 animate-pulse transition-all">
-           {status === 'connected' ? (
-             interactionMode === 'motion' ? 'Analyzing Visual Delta...' :
-             interactionMode === 'idle_chat' ? 'Sparking Conversation...' :
-             volume > 0.1 ? 'Speaking...' : 'Observing Workspace...'
-           ) : status === 'reconnecting' ? 'Recovering Connection...' : 'Connecting...'}
-        </p>
-      </div>
-
-      {/* Controls */}
-      <div className="relative z-10 p-8 pb-12 flex items-center justify-center gap-4 sm:gap-6 flex-wrap">
-        <button 
-          onClick={toggleMic}
-          className={`p-5 rounded-full border-2 transition-all ${isMicOn ? 'bg-white/10 border-white/20 text-white hover:bg-white/20' : 'bg-red-500/20 border-red-500 text-red-500'}`}
-        >
-          {isMicOn ? <Mic className="w-6 h-6" /> : <MicOff className="w-6 h-6" />}
-        </button>
-
-        <button 
-          onClick={onClose}
-          className="p-6 rounded-full bg-red-600 text-white shadow-[0_0_30px_rgba(220,38,38,0.4)] hover:bg-red-500 hover:scale-105 transition-all active:scale-95"
-        >
-          <PhoneOff className="w-8 h-8" />
-        </button>
-
-        <button 
-          onClick={() => {
-            setIsScreenSharing(!isScreenSharing);
-            if (!isScreenSharing) setIsCamOn(false);
-          }}
-          className={`p-5 rounded-full border-2 transition-all ${isScreenSharing ? 'bg-blue-600 border-blue-500 text-white shadow-[0_0_20px_rgba(59,130,246,0.5)]' : 'bg-transparent border-white/10 text-neutral-400 hover:border-white/30'}`}
-          title="Share Screen"
-        >
-          {isScreenSharing ? <Monitor className="w-6 h-6" /> : <MonitorOff className="w-6 h-6" />}
-        </button>
-
-        <button 
-          onClick={() => {
-            setIsCamOn(!isCamOn);
-            if (!isCamOn) setIsScreenSharing(false);
-          }}
-          className={`p-5 rounded-full border-2 transition-all ${isCamOn ? 'bg-white/10 border-white/20 text-white hover:bg-white/20' : 'bg-transparent border-white/10 text-neutral-400 hover:border-white/30'}`}
-          title="Toggle Camera"
-        >
-          {isCamOn ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
-        </button>
-
-        {isCamOn && (
-          <div className="flex gap-4">
-            <button 
-              onClick={toggleFlash}
-              className={`p-5 rounded-full border-2 transition-all ${isFlashOn ? 'bg-blue-600 border-blue-500 text-white shadow-[0_0_15px_rgba(59,130,246,0.5)]' : 'bg-white/10 border-white/20 text-neutral-400 hover:text-white'}`}
-              title="Toggle Flashlight"
-            >
-              <Zap className={`w-6 h-6 ${isFlashOn ? 'animate-pulse' : ''}`} />
-            </button>
-            <button 
-              onClick={toggleCameraFlip}
-              className="p-5 rounded-full border-2 bg-white/10 border-white/20 text-white hover:bg-white/20 transition-all active:rotate-180 duration-500"
-              title="Flip Camera"
-            >
-              <RefreshCw className="w-6 h-6" />
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
+    </ModuleLayout>
   );
 };
 

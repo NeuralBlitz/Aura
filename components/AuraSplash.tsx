@@ -1,6 +1,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { Sparkles, Activity, Globe, Lock, Cpu, Zap } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface AuraSplashProps {
   onComplete: () => void;
@@ -9,7 +10,6 @@ interface AuraSplashProps {
 const AuraSplash: React.FC<AuraSplashProps> = ({ onComplete }) => {
   const [stage, setStage] = useState(0);
   const [glitchText, setGlitchText] = useState('AURA_CORE_STDBY');
-  const [opacity, setOpacity] = useState(1);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -30,7 +30,7 @@ const AuraSplash: React.FC<AuraSplashProps> = ({ onComplete }) => {
     });
 
     // Final Fade and Callback
-    setTimeout(() => setOpacity(0), 6200);
+    setTimeout(() => setStage(6), 6200);
     setTimeout(onComplete, 6800);
 
     // Constellation Particle Animation
@@ -100,9 +100,12 @@ const AuraSplash: React.FC<AuraSplashProps> = ({ onComplete }) => {
   }, [onComplete]);
 
   return (
-    <div 
-      className="fixed inset-0 z-[500] bg-black flex flex-col items-center justify-center overflow-hidden transition-opacity duration-1000 ease-in-out"
-      style={{ opacity }}
+    <motion.div 
+      initial={{ opacity: 1 }}
+      animate={{ opacity: stage === 6 ? 0 : 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 1, ease: "easeInOut" }}
+      className="fixed inset-0 z-[500] bg-black flex flex-col items-center justify-center overflow-hidden select-none"
     >
       {/* Constellation Layer */}
       <canvas ref={canvasRef} className="absolute inset-0 z-0" />
@@ -202,7 +205,7 @@ const AuraSplash: React.FC<AuraSplashProps> = ({ onComplete }) => {
           100% { transform: scale(1.4); opacity: 0; }
         }
       `}</style>
-    </div>
+    </motion.div>
   );
 };
 
