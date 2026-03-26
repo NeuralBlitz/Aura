@@ -59,16 +59,16 @@ const FloatingChat: React.FC = () => {
   }
 
   return (
-    <div className={`fixed right-6 z-[100] transition-all duration-500 ease-in-out ${isMinimized ? 'bottom-24 w-14 h-14' : 'bottom-24 w-[350px] h-[500px] max-h-[70vh]'} glass bg-black/80 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden animate-scale-in`}>
+    <div className={`fixed right-6 z-[100] transition-all duration-700 cubic-bezier(0.16, 1, 0.3, 1) ${isMinimized ? 'bottom-24 w-16 h-16' : 'bottom-24 w-[380px] h-[550px] max-h-[75vh]'} glass-morphic bg-black/40 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden animate-scale-in`}>
       {/* Widget Header */}
-      <div className="px-6 py-4 border-b border-white/5 bg-white/5 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-7 h-7 rounded-lg bg-blue-600/20 border border-blue-500/20 flex items-center justify-center">
+      <div className="px-8 py-5 border-b border-white/5 bg-white/5 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-4">
+          <div className="w-8 h-8 rounded-xl bg-blue-600/20 border border-blue-500/20 flex items-center justify-center shadow-lg">
             <Sparkles className="w-4 h-4 text-blue-500" />
           </div>
           <div>
-            <h3 className="text-[10px] font-black uppercase tracking-widest text-white/90">Aura Assistant</h3>
-            <p className="text-[8px] text-green-500 font-bold uppercase tracking-widest">Neural Standby</p>
+            <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-white">Aura Assistant</h3>
+            <p className="text-[9px] text-green-500 font-black uppercase tracking-[0.1em]">Neural Link Active</p>
           </div>
         </div>
         <div className="flex items-center gap-1">

@@ -12,9 +12,13 @@ interface Track {
   cover: string;
 }
 
-const SonicView: React.FC = () => {
+interface SonicViewProps {
+  isSonicActive: boolean;
+  setIsSonicActive: (active: boolean) => void;
+}
+
+const SonicView: React.FC<SonicViewProps> = ({ isSonicActive, setIsSonicActive }) => {
   const playlistId = 'PLpvAXmg1KSacTT3A0g3jyvDfluIwDji4a';
-  const [isPlaying, setIsPlaying] = useState(true);
 
   // Cleanup old neural sounds on mount
   useEffect(() => {
@@ -22,7 +26,7 @@ const SonicView: React.FC = () => {
   }, []);
 
   return (
-    <ModuleLayout title="Neural Radio" subtitle="Playlist Integration" status={isPlaying ? "STREAMING" : "IDLE"} icon={Headphones} color="indigo">
+    <ModuleLayout title="Neural Radio" subtitle="Playlist Integration" status={isSonicActive ? "STREAMING" : "IDLE"} icon={Headphones} color="indigo">
       <div className="flex h-full bg-black/20 rounded-[2rem] border border-white/10 overflow-hidden shadow-2xl font-sans w-full">
         {/* Main Content */}
         <div className="flex-1 flex flex-col min-w-0 bg-transparent">
@@ -41,50 +45,64 @@ const SonicView: React.FC = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto p-8 no-scrollbar">
-             <div className="max-w-5xl mx-auto h-full flex flex-col">
-                <div className="mb-8 animate-fade-in flex-1 min-h-[500px]">
-                  <div className="relative w-full h-full bg-black rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/10 group">
-                    <iframe 
-                      width="100%" 
-                      height="100%" 
-                      src={`https://www.youtube.com/embed/videoseries?list=${playlistId}&autoplay=1&modestbranding=1&rel=0`}
-                      title="Neural Playlist"
-                      frameBorder="0" 
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                      allowFullScreen
-                      className="absolute inset-0"
-                    />
+             <div className="max-w-5xl mx-auto h-full flex flex-col items-center justify-center">
+                <div className="mb-12 p-16 rounded-[4rem] border-2 border-dashed border-white/10 flex flex-col items-center justify-center text-center bg-white/[0.02] backdrop-blur-3xl relative overflow-hidden group">
+                  <div className="absolute inset-0 bg-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                  
+                  <div className="relative z-10">
+                    <div className="w-32 h-32 rounded-[2.5rem] bg-indigo-600 flex items-center justify-center mb-8 shadow-2xl shadow-indigo-600/40 group-hover:scale-110 transition-transform duration-500">
+                      <Music className="w-16 h-16 text-white animate-pulse" />
+                    </div>
+                    
+                    <h2 className="text-3xl font-black text-white uppercase tracking-tighter mb-4">Neural Collection</h2>
+                    <p className="text-sm text-neutral-400 max-w-sm font-medium leading-relaxed mb-10">
+                      Initialize the persistent neural stream. This audio module will continue playing as you navigate across the AURA OS ecosystem.
+                    </p>
+
+                    <div className="flex flex-col gap-4 w-full max-w-xs mx-auto">
+                      <button 
+                        onClick={() => setIsSonicActive(!isSonicActive)}
+                        className={`w-full py-5 rounded-3xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-3 shadow-xl ${isSonicActive ? 'bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500/20' : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/20'}`}
+                      >
+                        {isSonicActive ? (
+                          <>
+                            <VolumeX className="w-5 h-5" />
+                            Terminate Stream
+                          </>
+                        ) : (
+                          <>
+                            <Play className="w-5 h-5 fill-current" />
+                            Initialize Stream
+                          </>
+                        )}
+                      </button>
+                      
+                      <a 
+                        href={`https://www.youtube.com/playlist?list=${playlistId}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="w-full py-5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-3xl font-black text-xs uppercase tracking-widest text-white transition-all flex items-center justify-center gap-3"
+                      >
+                        <ExternalLink className="w-5 h-5" />
+                        Source Collection
+                      </a>
+                    </div>
                   </div>
                 </div>
                 
-                <div className="flex items-center justify-between bg-white/5 p-6 rounded-[2rem] border border-white/5 backdrop-blur-xl">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-600/20">
-                      <Music className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="text-lg font-black text-white tracking-tighter">Neural Collection</h2>
-                      <p className="text-indigo-400 font-bold uppercase tracking-widest text-[10px] mt-0.5">Custom Playlist Stream</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-3">
-                    <a 
-                      href={`https://www.youtube.com/playlist?list=${playlistId}`} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all border border-white/5"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                      Open in YouTube
-                    </a>
-                    <button 
-                      onClick={() => setIsPlaying(!isPlaying)}
-                      className="p-3 bg-indigo-600 hover:bg-indigo-500 rounded-2xl transition-all shadow-lg shadow-indigo-600/20"
-                    >
-                      {isPlaying ? <Pause className="w-5 h-5 text-white" /> : <Play className="w-5 h-5 text-white" />}
-                    </button>
-                  </div>
+                <div className="flex items-center gap-8 opacity-40">
+                   <div className="flex flex-col items-center gap-2">
+                      <div className="w-1 h-12 bg-indigo-500/50 rounded-full animate-pulse" />
+                      <span className="text-[8px] font-black text-white uppercase tracking-widest">Alpha</span>
+                   </div>
+                   <div className="flex flex-col items-center gap-2">
+                      <div className="w-1 h-16 bg-indigo-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }} />
+                      <span className="text-[8px] font-black text-white uppercase tracking-widest">Beta</span>
+                   </div>
+                   <div className="flex flex-col items-center gap-2">
+                      <div className="w-1 h-12 bg-indigo-500/50 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }} />
+                      <span className="text-[8px] font-black text-white uppercase tracking-widest">Gamma</span>
+                   </div>
                 </div>
              </div>
           </div>

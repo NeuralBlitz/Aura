@@ -3,6 +3,7 @@ import { Search, MessageSquare, Plus, X, Trash2 } from 'lucide-react';
 import { Thread, Message } from '../types';
 import { db, auth } from '../services/firebase';
 import { collection, query, where, onSnapshot, deleteDoc, doc, getDocs } from 'firebase/firestore';
+import { handleFirestoreError, OperationType } from '../lib/firestore-utils';
 
 interface ChatHistorySidebarProps {
   isOpen: boolean;
@@ -42,7 +43,10 @@ const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
         const threadData = { id: document.id, ...document.data() } as Thread;
         
         // Fetch messages for this thread to enable searching
-        const messagesQ = query(collection(db, `threads/${document.id}/messages`));
+        const messagesQ = query(
+          collection(db, `threads/${document.id}/messages`),
+          where('userId', '==', auth.currentUser.uid)
+        );
         const messagesSnapshot = await getDocs(messagesQ);
         const messages = messagesSnapshot.docs.map(msgDoc => ({ id: msgDoc.id, ...msgDoc.data() } as Message));
         
@@ -53,7 +57,7 @@ const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
       loadedThreads.sort((a, b) => b.updatedAt - a.updatedAt);
       setThreads(loadedThreads);
     }, (error) => {
-      console.error("Error fetching threads:", error);
+      handleFirestoreError(error, OperationType.LIST, 'threads');
     });
 
     return () => unsubscribe();
@@ -63,7 +67,10 @@ const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
     e.stopPropagation();
     try {
       // Delete messages in this thread FIRST
-      const messagesQ = query(collection(db, `threads/${threadId}/messages`));
+      const messagesQ = query(
+        collection(db, `threads/${threadId}/messages`),
+        where('userId', '==', auth.currentUser.uid)
+      );
       const messagesSnapshot = await getDocs(messagesQ);
       const deletePromises = messagesSnapshot.docs.map(messageDoc => deleteDoc(messageDoc.ref));
       await Promise.all(deletePromises);

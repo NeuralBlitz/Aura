@@ -44,32 +44,30 @@ const ModuleLayout: React.FC<ModuleLayoutProps> = ({
   const theme = colorMap[color] || colorMap.blue;
 
   return (
-    <div className={`flex flex-col ${isMaximized ? 'fixed inset-0 z-50' : 'h-full w-full'} bg-[#050505]/90 backdrop-blur-3xl animate-fade-in relative overflow-hidden font-sans border border-white/5 rounded-2xl`}>
+    <div className={`flex flex-col ${isMaximized ? 'fixed inset-0 z-50' : 'h-full w-full'} bg-black/40 backdrop-blur-3xl animate-fade-in relative overflow-hidden font-sans border border-white/10 rounded-3xl shadow-2xl`}>
       {/* Background Grid & Scanline */}
-      <div className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none" 
-           style={{ backgroundImage: 'linear-gradient(rgba(255, 255, 255, 1) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 1) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
-      <div className="absolute left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent z-0 pointer-events-none"
-           style={{ top: `${scanLine}%`, opacity: 0.5 }} />
-
+      <div className="absolute inset-0 z-0 opacity-[0.05] pointer-events-none" 
+           style={{ backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+      
       {/* OS Window Chrome */}
-      <div className={`flex-none h-16 border-b ${theme.border} flex items-center justify-between px-4 select-none relative z-20 bg-black/80 backdrop-blur-xl`}>
-        <div className="flex items-center gap-4">
-          <div className={`p-2.5 rounded-xl bg-black border ${theme.border} ${theme.glow} relative overflow-hidden group`}>
+      <div className={`flex-none h-20 border-b ${theme.border} flex items-center justify-between px-6 select-none relative z-20 bg-black/60 backdrop-blur-2xl`}>
+        <div className="flex items-center gap-5">
+          <div className={`p-3 rounded-2xl bg-black border ${theme.border} ${theme.glow} relative overflow-hidden group shadow-lg`}>
             <div className={`absolute inset-0 bg-gradient-to-br ${theme.bg} opacity-50 group-hover:opacity-100 transition-opacity`} />
-            <Icon className={`w-5 h-5 ${theme.text} relative z-10`} />
+            <Icon className={`w-6 h-6 ${theme.text} relative z-10`} />
           </div>
           <div className="flex flex-col">
-            <div className="flex items-center gap-3">
-              <span className="text-[13px] font-black uppercase tracking-[0.4em] text-white">
+            <div className="flex items-center gap-4">
+              <span className="text-[14px] font-black uppercase tracking-[0.5em] text-white">
                 {title}
               </span>
-              <div className={`px-2 py-0.5 rounded-full border ${theme.border} bg-black/50 flex items-center gap-1.5`}>
-                <div className={`w-1.5 h-1.5 rounded-full ${theme.text.replace('text-', 'bg-')} animate-pulse`} />
-                <span className={`text-[9px] font-bold uppercase tracking-wider ${theme.text}`}>{status}</span>
+              <div className={`px-3 py-1 rounded-full border ${theme.border} bg-black/40 flex items-center gap-2`}>
+                <div className={`w-2 h-2 rounded-full ${theme.text.replace('text-', 'bg-')} animate-pulse`} />
+                <span className={`text-[10px] font-black uppercase tracking-widest ${theme.text}`}>{status}</span>
               </div>
             </div>
             {subtitle && (
-              <span className="text-[10px] font-mono text-neutral-500 uppercase tracking-widest mt-0.5">
+              <span className="text-[11px] font-mono text-neutral-500 uppercase tracking-[0.3em] mt-1">
                 {subtitle}
               </span>
             )}

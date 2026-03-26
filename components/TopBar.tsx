@@ -48,25 +48,28 @@ const TopBar: React.FC<TopBarProps> = ({
   const coherence = telemetry?.coherence || 100;
 
   return (
-    <nav className="fixed top-0 left-0 right-0 h-16 z-[90] glass-morphic flex items-center justify-between px-6 pt-safe border-b border-white/5 transition-colors duration-1000">
-      <div className="flex items-center gap-4">
+    <nav className="fixed top-0 left-0 right-0 h-20 z-[90] glass-morphic bg-black/40 backdrop-blur-3xl flex items-center justify-between px-8 pt-safe border-b border-white/10 transition-all duration-1000">
+      <div className="flex items-center gap-6">
         <button 
           onClick={onOpenProfile}
           className="relative group active:scale-90 transition-transform shrink-0"
         >
-          <div className={`absolute inset-0 blur-md opacity-20 group-hover:opacity-40 transition-all rounded-full ${coherence > 70 ? 'bg-blue-500' : 'bg-amber-500'}`} />
-          <img src={userProfile.avatarUrl} alt="User" className="relative w-9 h-9 rounded-full object-cover border border-white/20 shadow-lg" />
+          <div className={`absolute inset-0 blur-xl opacity-30 group-hover:opacity-60 transition-all rounded-full ${coherence > 70 ? 'bg-blue-500' : 'bg-amber-500'}`} />
+          <img src={userProfile.avatarUrl} alt="User" className="relative w-10 h-10 rounded-full object-cover border-2 border-white/20 shadow-2xl" />
         </button>
         
         <div className="relative">
           <button 
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="flex items-center gap-3 px-4 py-2 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 transition-all shadow-sm"
+            className="flex items-center gap-4 px-5 py-2.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all shadow-lg group"
           >
-            <span className={`text-[11px] font-black uppercase tracking-[0.15em] ${modelInfo[currentModel].color}`}>
+            <div className={`p-1.5 rounded-lg bg-black border border-white/5 ${modelInfo[currentModel].color}`}>
+               {modelInfo[currentModel].icon}
+            </div>
+            <span className={`text-[11px] font-black uppercase tracking-[0.2em] ${modelInfo[currentModel].color}`}>
               {modelInfo[currentModel].name}
             </span>
-            <ChevronDown className={`w-3.5 h-3.5 text-neutral-600 transition-transform ${isMenuOpen ? 'rotate-180' : ''}`} />
+            <ChevronDown className={`w-4 h-4 text-neutral-600 transition-transform group-hover:text-white ${isMenuOpen ? 'rotate-180' : ''}`} />
           </button>
 
           {isMenuOpen && (

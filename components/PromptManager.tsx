@@ -4,6 +4,7 @@ import { Plus, Trash2, Play, X, Save, MessageSquare, Sparkles } from 'lucide-rea
 import { CustomPrompt } from '../types';
 import { db, auth } from '../services/firebase';
 import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { handleFirestoreError, OperationType } from '../lib/firestore-utils';
 
 interface PromptManagerProps {
   isOpen: boolean;
@@ -32,6 +33,8 @@ const PromptManager: React.FC<PromptManagerProps> = ({ isOpen, onClose, onSelect
         loadedPrompts.push({ id: doc.id, ...doc.data() } as CustomPrompt);
       });
       setPrompts(loadedPrompts.sort((a, b) => b.createdAt - a.createdAt));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'custom_prompts');
     });
 
     return () => unsubscribe();

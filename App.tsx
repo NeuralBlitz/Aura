@@ -25,6 +25,7 @@ import TranslateView from './components/views/TranslateView';
 import HealthView from './components/views/HealthView';
 import MarketView from './components/views/MarketView';
 import SonicView from './components/views/SonicView';
+import SonicWidget from './components/SonicWidget';
 import WeatherView from './components/views/WeatherView';
 import CalendarView from './components/views/CalendarView';
 import BrowserView from './components/views/BrowserView';
@@ -43,9 +44,11 @@ import LoomView from './components/views/LoomView';
 
 import FloatingChat from './components/FloatingChat';
 import AuraSplash from './components/AuraSplash';
+import AuraBackground from './components/AuraBackground';
 import OnboardingFlow from './components/OnboardingFlow';
 import GlobalCommandPalette from './components/GlobalCommandPalette';
 import AuthScreen from './components/AuthScreen';
+import { handleFirestoreError, OperationType } from './lib/firestore-utils';
 import ChatHistorySidebar from './components/ChatHistorySidebar';
 import PromptManager from './components/PromptManager';
 import { motion, AnimatePresence } from 'motion/react';
@@ -77,7 +80,9 @@ export default function App() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
+  const [isSonicActive, setIsSonicActive] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const mainRef = useRef<HTMLDivElement>(null);
 
   const [userProfile, setUserProfile] = useState<UserProfile>({
     username: 'Explorer', avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=Aura', bio: 'AURA OS v9.0 Architect', level: 9, exp: 14200
@@ -190,6 +195,7 @@ export default function App() {
 
     const q = query(
       collection(db, `threads/${currentThreadId}/messages`),
+      where('userId', '==', auth.currentUser.uid),
       orderBy('timestamp', 'asc')
     );
 
@@ -204,14 +210,32 @@ export default function App() {
         } as Message);
       });
       setMessages(loadedMessages);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, `threads/${currentThreadId}/messages`);
     });
 
     return () => unsubscribe();
   }, [currentThreadId, isAuthenticated]);
 
+  // Improved Scroll Logic: Only auto-scroll when a new message is sent by the user
+  // or if the user is already near the bottom.
   useEffect(() => {
-    if (activeTab === 'home') bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isLoading, activeTab]);
+    if (activeTab === 'home' && messages.length > 0) {
+      const main = mainRef.current;
+      if (!main) return;
+
+      const isNearBottom = main.scrollHeight - main.scrollTop - main.clientHeight < 200;
+      const lastMessage = messages[messages.length - 1];
+      
+      // Auto-scroll if it's a user message (just sent) or if we're already at the bottom
+      if (lastMessage.role === 'user' || isNearBottom) {
+        bottomRef.current?.scrollIntoView({ 
+          behavior: lastMessage.role === 'user' ? 'smooth' : 'auto',
+          block: 'end'
+        });
+      }
+    }
+  }, [messages.length, activeTab]); // Only trigger on new messages, not on every stream update
 
   const saveMessageToFirestore = async (threadId: string, message: Message) => {
     if (!auth.currentUser) return;
@@ -332,7 +356,7 @@ export default function App() {
       case 'network': return <NetworkView />;
       case 'utility': return <UtilityView />;
       case 'market': return <MarketView />;
-      case 'sonic': return <SonicView />;
+      case 'sonic': return <SonicView isSonicActive={isSonicActive} setIsSonicActive={setIsSonicActive} />;
       case 'weather': return <WeatherView />;
       case 'calendar': return <CalendarView />;
       case 'browser': return <BrowserView />;
@@ -351,7 +375,7 @@ export default function App() {
       case 'live': return <LiveView onClose={() => setActiveTab('home')} />;
       
       case 'search': return <SearchView onNavigateToScriptorium={() => setActiveTab('scriptorium')} />;
-      case 'forge': return <ForgeView initialCode={forgeCode} onClearInjected={() => setForgeCode(null)} />;
+      case 'forge': return <ForgeView initialCode={forgeCode} onClearInjected={() => setForgeCode(null)} onClose={() => setActiveTab('home')} />;
       case 'marketplace': return <Marketplace installedIds={preferences.installedModules} onInstall={(id) => setPreferences(p => ({ ...p, installedModules: [...p.installedModules, id] }))} onLaunch={(id) => setActiveTab(id as Tab)} />;
       default:
         return messages.length === 0 ? (
@@ -387,9 +411,9 @@ export default function App() {
   if (!isAuthenticated) return <AuthScreen onSuccess={() => setIsAuthenticated(true)} />;
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-black overflow-hidden select-none relative transition-all duration-1000">
+    <div className="flex flex-col h-screen bg-black overflow-hidden relative transition-all duration-1000">
+      <AuraBackground />
       {showOnboarding && <OnboardingFlow onComplete={() => setShowOnboarding(false)} />}
-      <div className="absolute inset-0 bg-aurora pointer-events-none" />
       <TopBar 
         currentModel={currentModel} 
         onModelChange={setCurrentModel} 
@@ -447,29 +471,33 @@ export default function App() {
         onLaunchTool={(view) => setActiveTab(view)} 
         onSignOut={() => auth.signOut()}
       />
-      <main className={`flex-1 overflow-y-auto pt-16 pb-48 no-scrollbar scroll-smooth relative z-10 ${activeTab === 'home' ? 'bg-black' : 'bg-[#050505]'}`}>
+      <main 
+        ref={mainRef}
+        className={`flex-1 overflow-y-auto relative z-10 touch-pan-y overscroll-contain transition-all duration-500 ${activeTab === 'home' ? 'pt-16 pb-48' : 'pt-16 pb-0'}`}
+      >
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3, ease: "easeOut" }}
-            className="h-full"
+            initial={{ opacity: 0, scale: 0.98, filter: 'blur(10px)' }}
+            animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+            exit={{ opacity: 0, scale: 1.02, filter: 'blur(10px)' }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            className="min-h-full"
           >
             {renderContent()}
           </motion.div>
         </AnimatePresence>
       </main>
       {activeTab === 'home' && (
-        <div className="fixed bottom-16 left-0 right-0 z-[70] px-6 pointer-events-none">
+        <div className="fixed bottom-32 left-0 right-0 z-[70] px-6 pointer-events-none">
           <div className="max-w-2xl mx-auto pointer-events-auto">
             <InputArea onSend={(text, attach) => handleSend(text, attach)} isLoading={isLoading} />
           </div>
         </div>
       )}
-      <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+      {activeTab === 'home' && <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />}
       <FloatingChat />
+      <SonicWidget isActive={isSonicActive} onClose={() => setIsSonicActive(false)} />
     </div>
   );
 }

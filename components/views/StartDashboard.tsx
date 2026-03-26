@@ -50,13 +50,13 @@ const StartDashboard: React.FC<StartDashboardProps> = ({ onAction, userParams })
           </div>
 
           <div className="text-center mb-16">
-            <h1 className="text-4xl font-black tracking-tighter mb-4 text-white">
+            <h1 className="text-5xl font-black tracking-tighter mb-4 text-white">
               {greeting}, <span className="text-blue-500">{userParams.username.split(' ')[0]}</span>
             </h1>
             <div className="flex flex-col items-center gap-2">
                <div className="flex items-center justify-center gap-3">
                   <Zap className="w-3.5 h-3.5 text-blue-500" />
-                  <p className="text-[10px] text-neutral-600 font-black uppercase tracking-[0.4em]">Neural Substrate_v4.5_Operational</p>
+                  <p className="text-[10px] text-neutral-500 font-black uppercase tracking-[0.4em]">Neural Substrate_v9.0_Operational</p>
                </div>
             </div>
           </div>
@@ -69,17 +69,17 @@ const StartDashboard: React.FC<StartDashboardProps> = ({ onAction, userParams })
               <LayoutGrid className="w-4 h-4 text-neutral-700" />
               <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-neutral-700">Intent Matrix</h2>
             </div>
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-4 gap-4">
               {neuralShortcuts.map((sc, i) => (
                 <button 
                   key={i}
                   onClick={() => onAction(sc.prompt || '', undefined, sc.actionType)}
-                  className="flex flex-col items-center gap-4 p-4 glass-morphic bg-white/[0.02] border-white/5 hover:border-blue-500/40 rounded-3xl transition-all active:scale-90 group"
+                  className="flex flex-col items-center gap-4 p-5 glass-morphic bg-white/[0.01] border-white/5 hover:border-blue-500/40 rounded-[2rem] transition-all active:scale-90 group"
                 >
-                   <div className={`p-3 rounded-2xl bg-black border border-white/5 group-hover:scale-110 transition-transform ${sc.color}`}>
+                   <div className={`p-3.5 rounded-2xl bg-black border border-white/5 group-hover:scale-110 transition-transform ${sc.color}`}>
                       <sc.icon className="w-5 h-5" />
                    </div>
-                   <span className="text-[8px] font-black uppercase tracking-widest text-neutral-500 text-center leading-tight">{sc.label}</span>
+                   <span className="text-[7px] font-black uppercase tracking-[0.2em] text-neutral-500 text-center leading-tight">{sc.label}</span>
                 </button>
               ))}
             </div>

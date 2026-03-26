@@ -17,63 +17,14 @@ import { auth, db } from '../../services/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import ModuleLayout from '../ui/ModuleLayout';
+import { handleFirestoreError, OperationType } from '../../lib/firestore-utils';
 
 const MemoizedConsole = React.memo(ForgeConsole);
-
-enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
-}
-
-interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId: string | undefined;
-    email: string | null | undefined;
-    emailVerified: boolean | undefined;
-    isAnonymous: boolean | undefined;
-    tenantId: string | null | undefined;
-    providerInfo: {
-      providerId: string;
-      displayName: string | null;
-      email: string | null;
-      photoUrl: string | null;
-    }[];
-  }
-}
-
-const handleFirestoreError = (error: unknown, operationType: OperationType, path: string | null) => {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData.map(provider => ({
-        providerId: provider.providerId,
-        displayName: provider.displayName,
-        email: provider.email,
-        photoUrl: provider.photoURL
-      })) || []
-    },
-    operationType,
-    path
-  };
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
-};
 
 interface ForgeViewProps {
   initialCode: string | null;
   onClearInjected?: () => void;
+  onClose?: () => void;
 }
 
 interface AgentMessage {
@@ -294,7 +245,7 @@ AURA.renderAngular(AppComponent, template);`
   }
 ];
 
-const ForgeView: React.FC<ForgeViewProps> = ({ initialCode, onClearInjected }) => {
+const ForgeView: React.FC<ForgeViewProps> = ({ initialCode, onClearInjected, onClose }) => {
   const [messages, setMessages] = useState<AgentMessage[]>([]);
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -316,18 +267,28 @@ const ForgeView: React.FC<ForgeViewProps> = ({ initialCode, onClearInjected }) =
   const scrollRef = useRef<HTMLDivElement>(null);
   const autoRunTimer = useRef<any>(null);
 
+  // Auto-scroll chat to bottom only if user is already near bottom or it's a new user message
+  useEffect(() => {
+    if (scrollRef.current) {
+      const container = scrollRef.current;
+      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
+      
+      // If it's the first message or user is near bottom, scroll
+      if (messages.length > 0 && isNearBottom) {
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior: 'smooth'
+        });
+      }
+    }
+  }, [messages, isProcessing]);
+
   useEffect(() => {
     if (initialCode) {
       setCurrentCode(initialCode);
       if (onClearInjected) onClearInjected();
     }
   }, [initialCode]);
-
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages]);
 
   // Auth Listener
   useEffect(() => {
@@ -421,17 +382,43 @@ const ForgeView: React.FC<ForgeViewProps> = ({ initialCode, onClearInjected }) =
     }
   }, [currentCode, autoRun]);
 
-  const handleRun = async (codeToRun: string) => {
-    if (!canvasRef.current) return;
+  const [canvasKey, setCanvasKey] = useState(0);
+
+  const resetCanvas = () => {
+    setCanvasKey(prev => prev + 1);
+    // Give React a tick to recreate the canvas before running code
+    return new Promise(resolve => setTimeout(resolve, 50));
+  };
+
+  const handleRun = async (codeToRun: string): Promise<LogEntry[]> => {
     setIsRunning(true);
     
     // Auto-switch to preview on mobile when running
     if (window.innerWidth < 1024) setActiveView('preview');
     
-    const newLogs = await executeCode(codeToRun, canvasRef.current, setLogs);
-    setLogs(newLogs);
-    setIsRunning(false);
-    return newLogs;
+    // Always reset canvas before running to ensure clean context
+    await resetCanvas();
+    
+    // Small delay to ensure canvas is mounted
+    return new Promise<LogEntry[]>((resolve) => {
+      setTimeout(async () => {
+        if (!canvasRef.current) {
+          setIsRunning(false);
+          resolve([]);
+          return;
+        }
+        const newLogs = await executeCode(codeToRun, canvasRef.current, setLogs);
+        setLogs(newLogs);
+        setIsRunning(false);
+        resolve(newLogs);
+      }, 100);
+    });
+  };
+
+  const handleSnippetSelect = async (snippetCode: string) => {
+    setCurrentCode(snippetCode);
+    await resetCanvas();
+    handleRun(snippetCode);
   };
 
   const safeGenerateContent = async (params: any, modelIndex = 0) => {
@@ -663,6 +650,7 @@ const ForgeView: React.FC<ForgeViewProps> = ({ initialCode, onClearInjected }) =
       status={isProcessing ? "SYNTHESIZING" : "SYSTEM NOMINAL"} 
       icon={Terminal} 
       color="blue"
+      onClose={onClose}
     >
       <div className="flex flex-col lg:flex-row h-full bg-black/20 text-white font-mono selection:bg-blue-500/30 overflow-hidden relative w-full">
       {/* --- Left Sidebar: Agent Control (Desktop) / Agent Tab (Mobile) --- */}
@@ -742,7 +730,7 @@ const ForgeView: React.FC<ForgeViewProps> = ({ initialCode, onClearInjected }) =
         )}
 
         {/* Chat History */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6 no-scrollbar">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6 scroll-smooth">
           {messages.length === 0 && (
             <div className="h-full flex flex-col items-center justify-center text-center opacity-30">
               <Sparkles className="w-12 h-12 mb-4" />
@@ -840,7 +828,7 @@ const ForgeView: React.FC<ForgeViewProps> = ({ initialCode, onClearInjected }) =
               {SNIPPETS.map(s => (
                 <button 
                   key={s.id}
-                  onClick={() => { setCurrentCode(s.code); handleRun(s.code); }}
+                  onClick={() => handleSnippetSelect(s.code)}
                   className="px-2 py-1 bg-white/5 hover:bg-white/10 rounded border border-white/5 text-[8px] font-black uppercase tracking-widest text-neutral-500 hover:text-blue-400 transition-all"
                 >
                   {s.label}
@@ -849,6 +837,13 @@ const ForgeView: React.FC<ForgeViewProps> = ({ initialCode, onClearInjected }) =
             </div>
           </div>
           <div className="flex items-center gap-2 lg:gap-3">
+             <button 
+               onClick={async () => { await resetCanvas(); handleRun(currentCode); }}
+               className="p-2 rounded-lg bg-transparent border border-transparent text-neutral-600 hover:text-white hover:bg-white/5 transition-all"
+               title="Reset Canvas Context"
+             >
+               <RefreshCw className="w-4 h-4" />
+             </button>
              <button 
                onClick={() => setAutoRun(!autoRun)}
                className={`p-2 rounded-lg transition-all border ${autoRun ? 'bg-blue-500/20 border-blue-500/50 text-blue-400' : 'bg-transparent border-transparent text-neutral-600 hover:text-white'}`}
@@ -926,6 +921,7 @@ const ForgeView: React.FC<ForgeViewProps> = ({ initialCode, onClearInjected }) =
                   <button onClick={() => setShowCRT(!showCRT)} className={`px-2 py-1 rounded-md border text-[9px] font-bold ${showCRT ? 'bg-green-500/20 border-green-500/50 text-green-400' : 'bg-black/60 border-white/10 text-neutral-500'}`}>CRT</button>
                </div>
                <canvas 
+                 key={canvasKey}
                  ref={canvasRef} 
                  width={800} 
                  height={600} 
@@ -956,7 +952,7 @@ const ForgeView: React.FC<ForgeViewProps> = ({ initialCode, onClearInjected }) =
       </div>
 
       {/* --- Mobile Sub-Navigation --- */}
-      <div className="lg:hidden h-16 bg-black border-t border-white/10 flex items-center justify-around px-2 z-[90] shrink-0">
+      <div className="lg:hidden h-20 bg-black/95 backdrop-blur-xl border-t border-white/10 flex items-center justify-center gap-4 sm:gap-10 px-4 z-[90] shrink-0">
         {[
           { id: 'agent', icon: Brain, label: 'Agent' },
           { id: 'editor', icon: Code2, label: 'Code' },
@@ -966,10 +962,10 @@ const ForgeView: React.FC<ForgeViewProps> = ({ initialCode, onClearInjected }) =
           <button
             key={tab.id}
             onClick={() => setActiveView(tab.id as any)}
-            className={`flex flex-col items-center gap-1 transition-all ${activeView === tab.id ? 'text-blue-500' : 'text-neutral-600'}`}
+            className={`flex flex-col items-center justify-center gap-1.5 transition-all min-w-[64px] py-2 rounded-2xl ${activeView === tab.id ? 'text-blue-400 bg-blue-500/10 shadow-[0_0_20px_rgba(59,130,246,0.1)]' : 'text-neutral-500 hover:text-neutral-300'}`}
           >
-            <tab.icon className="w-5 h-5" />
-            <span className="text-[8px] font-black uppercase tracking-widest">{tab.label}</span>
+            <tab.icon className={`w-5 h-5 ${activeView === tab.id ? 'animate-pulse' : ''}`} />
+            <span className="text-[8px] font-black uppercase tracking-[0.2em]">{tab.label}</span>
           </button>
         ))}
       </div>
