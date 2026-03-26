@@ -1,7 +1,7 @@
 
 import { GoogleGenAI, LiveServerMessage, Modality } from "@google/genai";
 
-export type LiveStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
+export type LiveStatus = 'disconnected' | 'connecting' | 'connected' | 'error' | 'reconnecting';
 
 export interface LiveConfig {
   voiceName?: string;
@@ -31,12 +31,19 @@ export class LiveClient {
   private ai: GoogleGenAI;
   public status: LiveStatus = 'disconnected';
   private audioContext: AudioContext | null = null;
+  private inputContext: AudioContext | null = null;
   private mediaStream: MediaStream | null = null;
   private workletNode: ScriptProcessorNode | null = null;
   private inputSource: MediaStreamAudioSourceNode | null = null;
   private nextStartTime = 0;
   private sessionPromise: Promise<any> | null = null;
   private activeSources = new Set<AudioBufferSourceNode>();
+  private currentConfig: LiveConfig | null = null;
+  private models = [
+    'gemini-2.5-flash-native-audio-preview-12-2025',
+    'gemini-2.5-flash-native-audio-preview-09-2025'
+  ];
+  private currentModelIndex = 0;
   
   public onStatusChange: (status: LiveStatus) => void = () => {};
   public onAudioLevel: (level: number) => void = () => {};
@@ -46,42 +53,100 @@ export class LiveClient {
     this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   }
 
-  async connect(config: LiveConfig) {
+  /**
+   * Pre-warms the audio context and microphone to reduce connection latency
+   */
+  async warmup() {
     try {
+      if (!this.audioContext || this.audioContext.state === 'closed') {
+        this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+      }
+      if (this.audioContext.state === 'suspended') {
+        await this.audioContext.resume();
+      }
+      if (!this.mediaStream) {
+        this.mediaStream = await navigator.mediaDevices.getUserMedia({ 
+          audio: {
+            channelCount: 1,
+            sampleRate: 16000,
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          } 
+        });
+      }
+      return true;
+    } catch (e) {
+      console.warn("Warmup failed:", e);
+      return false;
+    }
+  }
+
+  async connect(config: LiveConfig, modelIndex = 0) {
+    try {
+      this.currentConfig = config;
+      this.currentModelIndex = modelIndex;
+      
+      if (this.currentModelIndex >= this.models.length) {
+        throw new Error("All neural models failed to establish a live link.");
+      }
+
+      const modelName = this.models[this.currentModelIndex];
+      console.log(`[AURA]: Establishing neural link via ${modelName}...`);
+
       this.status = 'connecting';
       this.onStatusChange(this.status);
 
-      // Initialize Audio Context
-      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+      // Parallelize audio/mic initialization and API connection
+      const warmupPromise = this.warmup();
       
-      // Get Microphone Stream
-      this.mediaStream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          channelCount: 1,
-          sampleRate: 16000,
-        } 
-      });
-
       this.sessionPromise = this.ai.live.connect({
-        // Updated model name to latest preview from guidelines
-        model: 'gemini-2.5-flash-native-audio-preview-12-2025',
+        model: modelName,
         callbacks: {
-          onopen: () => {
+          onopen: async () => {
+            const isReady = await warmupPromise; // Ensure audio is ready
+            if (!isReady) {
+              this.onError(new Error("Microphone access denied or hardware error."));
+              this.disconnect();
+              return;
+            }
             this.status = 'connected';
             this.onStatusChange(this.status);
             this.startAudioInput();
           },
           onmessage: (message: LiveServerMessage) => this.handleMessage(message),
           onclose: () => {
-            this.status = 'disconnected';
-            this.onStatusChange(this.status);
-            this.disconnect();
+            if (this.status === 'connected' || this.status === 'connecting' || this.status === 'reconnecting') {
+              console.log("[AURA]: Neural link dropped unexpectedly. Attempting recovery...");
+              this.retryWithFallback();
+            } else if (this.status !== 'disconnected') {
+              this.status = 'disconnected';
+              this.onStatusChange(this.status);
+              this.disconnect();
+            }
           },
-          onerror: (err) => {
-            console.error("Live API Error:", err);
-            this.status = 'error';
-            this.onStatusChange(this.status);
-            this.onError(new Error("Connection error"));
+          onerror: (err: any) => {
+            console.error(`Live API Error with ${modelName}:`, err);
+            
+            // Enhanced fallback logic: check for specific error types
+            const isQuotaError = err.message?.includes('429') || err.message?.includes('QUOTA');
+            const isAuthError = err.message?.includes('401') || err.message?.includes('403');
+            
+            if (isQuotaError) {
+              this.onError(new Error("Neural Quota Exhausted. Please try again later."));
+              this.disconnect();
+              return;
+            }
+
+            // If we are still connecting and get an error, try the fallback
+            if (this.status === 'connecting' || this.status === 'connected') {
+              console.log("[AURA]: Neural link unstable. Attempting fallback...");
+              this.retryWithFallback();
+            } else {
+              this.status = 'error';
+              this.onStatusChange(this.status);
+              this.onError(new Error(`Neural Link Failure: ${err.message || 'Unknown error'}`));
+            }
           }
         },
         config: {
@@ -89,15 +154,38 @@ export class LiveClient {
           speechConfig: {
             voiceConfig: { prebuiltVoiceConfig: { voiceName: config.voiceName || 'Kore' } }
           },
-          systemInstruction: config.systemInstruction
+          systemInstruction: { parts: [{ text: config.systemInstruction || '' }] }
         }
       });
 
     } catch (e: any) {
       console.error("Failed to connect:", e);
+      this.retryWithFallback();
+    }
+  }
+
+  private async retryWithFallback() {
+    if (this.currentConfig && this.currentModelIndex < this.models.length - 1) {
+      // Clean up current failed session
+      if (this.workletNode) {
+        this.workletNode.disconnect();
+        this.workletNode = null;
+      }
+      
+      this.currentModelIndex++;
+      const nextModel = this.models[this.currentModelIndex];
+      console.log(`[AURA]: Retrying with fallback model: ${nextModel}`);
+      
+      this.status = 'reconnecting';
+      this.onStatusChange(this.status);
+
+      // Wait a bit before retrying to avoid rapid-fire failures
+      await new Promise(resolve => setTimeout(resolve, 500));
+      this.connect(this.currentConfig, this.currentModelIndex);
+    } else {
       this.status = 'error';
       this.onStatusChange(this.status);
-      this.onError(e);
+      this.onError(new Error("Neural Link Failure: All models exhausted. Please check your network or API key."));
     }
   }
 
@@ -105,11 +193,11 @@ export class LiveClient {
     if (!this.audioContext || !this.mediaStream) return;
 
     // Use a context with 16kHz for input as required by the API
-    const inputContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
-    const source = inputContext.createMediaStreamSource(this.mediaStream);
+    this.inputContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+    const source = this.inputContext.createMediaStreamSource(this.mediaStream);
     
     // ScriptProcessor is used for streaming raw PCM
-    const processor = inputContext.createScriptProcessor(4096, 1, 1);
+    const processor = this.inputContext.createScriptProcessor(4096, 1, 1);
     
     processor.onaudioprocess = (e) => {
       const inputData = e.inputBuffer.getChannelData(0);
@@ -140,7 +228,7 @@ export class LiveClient {
     };
 
     source.connect(processor);
-    processor.connect(inputContext.destination);
+    processor.connect(this.inputContext.destination);
     
     this.workletNode = processor;
   }
@@ -200,6 +288,14 @@ export class LiveClient {
     });
   }
 
+  async sendText(text: string) {
+    this.sessionPromise?.then(session => {
+      session.sendRealtimeInput({
+        text
+      });
+    });
+  }
+
   async disconnect() {
     this.status = 'disconnected';
     this.onStatusChange(this.status);
@@ -217,6 +313,11 @@ export class LiveClient {
     if (this.audioContext) {
       this.audioContext.close();
       this.audioContext = null;
+    }
+    
+    if (this.inputContext) {
+      this.inputContext.close();
+      this.inputContext = null;
     }
     
     // Release session resources

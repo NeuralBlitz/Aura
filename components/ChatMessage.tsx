@@ -1,7 +1,7 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Message } from '../types';
-import { Copy, BrainCircuit, Globe, Sparkles, ArrowUp, GitFork, BookMarked, History } from 'lucide-react';
+import { Copy, BrainCircuit, Globe, Sparkles, ArrowUp, GitFork, BookMarked, History, Volume2, VolumeX, RefreshCw } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -20,6 +20,19 @@ interface ChatMessageProps {
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, onRetry, onOpenArtifact, onFork }) => {
   const isUser = message.role === 'user';
   const isStreaming = message.isStreaming;
+  const [isSpeaking, setIsSpeaking] = useState(false);
+
+  const toggleSpeech = () => {
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    } else {
+      const utterance = new SpeechSynthesisUtterance(message.text);
+      utterance.onend = () => setIsSpeaking(false);
+      window.speechSynthesis.speak(utterance);
+      setIsSpeaking(true);
+    }
+  };
 
   return (
     <div className={`w-full px-6 py-8 animate-slide-up flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
@@ -44,6 +57,13 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, onRetry, onO
             </div>
             
             <div className="flex items-center gap-2">
+              <button 
+                onClick={toggleSpeech}
+                className={`p-2 rounded-xl transition-all active:scale-90 ${isSpeaking ? 'bg-blue-500/20 text-blue-400' : 'bg-white/5 text-neutral-500 hover:text-blue-400'}`}
+                title={isSpeaking ? "Stop Speaking" : "Read Aloud"}
+              >
+                 {isSpeaking ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+              </button>
               <button 
                 onClick={() => onFork?.(message.id)}
                 className="p-2 bg-white/5 rounded-xl text-neutral-500 hover:text-blue-400 transition-all active:scale-90"
@@ -75,25 +95,48 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, onRetry, onO
           </div>
         )}
 
-        <div className={`prose prose-invert prose-sm max-w-none leading-relaxed font-medium selection:bg-blue-500/30 ${isUser ? 'text-white' : 'text-neutral-300 border-l-2 border-blue-500/30 pl-8'}`}>
-          <ReactMarkdown 
-            remarkPlugins={[remarkMath]}
-            rehypePlugins={[rehypeKatex, rehypeRaw]}
-            components={{
-              code: ({node, inline, ...props}: any) => (
-                inline 
-                  ? <code className="bg-white/10 px-1.5 py-0.5 rounded text-blue-400 font-mono text-[11px]" {...props} />
-                  : <div className="bg-black/40 border border-white/10 p-6 rounded-[2rem] my-6 overflow-x-auto shadow-inner">
-                      <code className="text-blue-200 font-mono text-[12px] leading-relaxed" {...props} />
-                    </div>
-              ),
-              img: ({node, ...props}: any) => <img {...props} className="rounded-[2.5rem] border border-white/10 my-8 shadow-2xl" />,
-              p: ({node, ...props}: any) => <p className="mb-6 last:mb-0" {...props} />
-            }}
-          >
-            {message.text}
-          </ReactMarkdown>
-        </div>
+        {message.isError && (
+          <div className="mt-6 p-6 rounded-[2rem] bg-red-500/10 border border-red-500/30 flex items-center justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-2xl bg-red-500/20 flex items-center justify-center text-red-500 shadow-lg">
+                <BrainCircuit className="w-5 h-5" />
+              </div>
+              <div className="flex flex-col">
+                <p className="text-xs font-black text-red-400 uppercase tracking-widest mb-1">Neural Disruption</p>
+                <p className="text-[10px] text-red-500/70 font-bold leading-relaxed">{message.text}</p>
+              </div>
+            </div>
+            <button 
+              onClick={onRetry}
+              className="p-4 rounded-2xl bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.4)] hover:bg-red-400 hover:scale-105 transition-all active:scale-95"
+              title="Retry Neural Link"
+            >
+              <RefreshCw className="w-5 h-5" />
+            </button>
+          </div>
+        )}
+
+        {!message.isError && (
+          <div className={`prose prose-invert prose-sm max-w-none leading-relaxed font-medium selection:bg-blue-500/30 ${isUser ? 'text-white' : 'text-neutral-300 border-l-2 border-blue-500/30 pl-8'}`}>
+            <ReactMarkdown 
+              remarkPlugins={[remarkMath]}
+              rehypePlugins={[rehypeKatex, rehypeRaw]}
+              components={{
+                code: ({node, inline, ...props}: any) => (
+                  inline 
+                    ? <code className="bg-white/10 px-1.5 py-0.5 rounded text-blue-400 font-mono text-[11px]" {...props} />
+                    : <div className="bg-black/40 border border-white/10 p-6 rounded-[2rem] my-6 overflow-x-auto shadow-inner">
+                        <code className="text-blue-200 font-mono text-[12px] leading-relaxed" {...props} />
+                      </div>
+                ),
+                img: ({node, ...props}: any) => <img {...props} className="rounded-[2.5rem] border border-white/10 my-8 shadow-2xl" />,
+                p: ({node, ...props}: any) => <p className="mb-6 last:mb-0" {...props} />
+              }}
+            >
+              {message.text}
+            </ReactMarkdown>
+          </div>
+        )}
 
         {message.widgets && message.widgets.length > 0 && (
           <div className="mt-10 space-y-8 w-full">

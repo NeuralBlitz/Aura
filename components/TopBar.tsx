@@ -39,7 +39,10 @@ const TopBar: React.FC<TopBarProps> = ({
     [ModelType.CREATIVE_WRITING]: { name: 'Creative Writer', icon: <Sparkles className="w-3.5 h-3.5" />, color: 'text-fuchsia-400', bg: 'bg-fuchsia-400/10' },
     [ModelType.CODING_ASSISTANT]: { name: 'Code Assistant', icon: <Cpu className="w-3.5 h-3.5" />, color: 'text-cyan-400', bg: 'bg-cyan-400/10' },
     [ModelType.GENERAL_KNOWLEDGE]: { name: 'General Knowledge', icon: <ShieldCheck className="w-3.5 h-3.5" />, color: 'text-amber-400', bg: 'bg-amber-400/10' },
-    [ModelType.HUMOROUS_COMPANION]: { name: 'Humorous Companion', icon: <Laugh className="w-3.5 h-3.5" />, color: 'text-orange-400', bg: 'bg-orange-400/10' }
+    [ModelType.HUMOROUS_COMPANION]: { name: 'Humorous Companion', icon: <Laugh className="w-3.5 h-3.5" />, color: 'text-orange-400', bg: 'bg-orange-400/10' },
+    [ModelType.FRIENDLY_ASSISTANT]: { name: 'Friendly Assistant', icon: <MessageSquare className="w-3.5 h-3.5" />, color: 'text-rose-400', bg: 'bg-rose-400/10' },
+    [ModelType.PROFESSIONAL_TONE]: { name: 'Professional Tone', icon: <BookOpen className="w-3.5 h-3.5" />, color: 'text-slate-400', bg: 'bg-slate-400/10' },
+    [ModelType.WITTY_COMPANION]: { name: 'Witty Companion', icon: <Sparkles className="w-3.5 h-3.5" />, color: 'text-yellow-400', bg: 'bg-yellow-400/10' }
   };
 
   const coherence = telemetry?.coherence || 100;

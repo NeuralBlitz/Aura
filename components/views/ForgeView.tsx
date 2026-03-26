@@ -92,7 +92,7 @@ interface AgentPlanStep {
 }
 
 const DEFAULT_CODE = `// AURA OS v9.0 // UNIFIED SUBSTRATE FORGE
-// Interactive Spatial Canvas
+// Interactive Spatial Canvas: Neural Flow
 
 AURA.clear();
 
@@ -107,15 +107,25 @@ AURA.animate((time, { telemetry }) => {
   ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   
+  // Draw Background Grid
+  AURA.utils.grid(ctx, 100, 'rgba(0, 242, 255, 0.03)');
+  
   for(let i = 0; i < nodeCount; i++) {
+    const pulse = AURA.utils.pulse(time, 0.5, 20);
     const angle = (i / nodeCount) * Math.PI * 2 + time / (10000 / speed);
-    const x = canvas.width / 2 + Math.cos(angle) * (150 + Math.sin(time/500) * 50);
-    const y = canvas.height / 2 + Math.sin(angle) * (150 + Math.cos(time/500) * 50);
+    const x = canvas.width / 2 + Math.cos(angle) * (150 + pulse);
+    const y = canvas.height / 2 + Math.sin(angle) * (150 + pulse);
     
+    AURA.utils.neon(ctx, AURA.utils.hsl((time / 10 + i * 5) % 360, 70, 60), 15);
     ctx.fillStyle = AURA.utils.hsl((time / 10 + i * 5) % 360, 70, 60);
     ctx.beginPath();
     ctx.arc(x, y, 5 + Math.sin(time/200 + i) * 3, 0, Math.PI * 2);
     ctx.fill();
+    
+    // Occasional Glitch
+    if (Math.random() > 0.99) {
+      AURA.utils.glitch(ctx, x-20, y-20, 40, 40, 2);
+    }
   }
 });`;
 
@@ -125,16 +135,27 @@ const SNIPPETS = [
     label: 'Particle Flux', 
     code: `// Particle Flux Substrate
 const particles = [];
-for(let i=0; i<100; i++) particles.push({x: Math.random()*canvas.width, y: Math.random()*canvas.height, vx: Math.random()*2-1, vy: Math.random()*2-1});
+for(let i=0; i<100; i++) particles.push({
+  x: Math.random()*canvas.width, 
+  y: Math.random()*canvas.height, 
+  vx: Math.random()*2-1, 
+  vy: Math.random()*2-1,
+  hue: Math.random() * 60 + 180
+});
 
 AURA.animate((time) => {
   ctx.fillStyle = 'rgba(0,0,0,0.1)';
   ctx.fillRect(0,0,canvas.width, canvas.height);
+  
+  AURA.utils.grid(ctx, 80, 'rgba(0, 242, 255, 0.02)');
+  
   particles.forEach(p => {
     p.x += p.vx; p.y += p.vy;
     if(p.x < 0 || p.x > canvas.width) p.vx *= -1;
     if(p.y < 0 || p.y > canvas.height) p.vy *= -1;
-    ctx.fillStyle = '#00f2ff';
+    
+    AURA.utils.neon(ctx, AURA.utils.hsl(p.hue, 100, 50), 10);
+    ctx.fillStyle = AURA.utils.hsl(p.hue, 100, 50);
     ctx.fillRect(p.x, p.y, 2, 2);
   });
 });`
@@ -149,10 +170,18 @@ AURA.onInput('mousemove', (pos) => mouse = pos);
 AURA.animate((time) => {
   ctx.fillStyle = 'rgba(0,0,0,0.05)';
   ctx.fillRect(0,0,canvas.width, canvas.height);
+  
+  const pulse = AURA.utils.pulse(time, 2, 10);
+  
+  AURA.utils.neon(ctx, '#00f2ff', 20 + pulse);
   ctx.strokeStyle = '#00f2ff';
+  ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.arc(mouse.x, mouse.y, 50 + Math.sin(time/200)*20, 0, Math.PI*2);
+  ctx.arc(mouse.x, mouse.y, 50 + pulse, 0, Math.PI*2);
   ctx.stroke();
+  
+  // Glitch effect on hover
+  AURA.utils.glitch(ctx, mouse.x - 60, mouse.y - 60, 120, 120, 0.5);
 });`
   },
   {
@@ -161,7 +190,11 @@ AURA.animate((time) => {
     code: `// 3D Neural Core
 AURA.render3D((scene, camera, THREE) => {
   const geometry = new THREE.TorusKnotGeometry(10, 3, 100, 16);
-  const material = new THREE.MeshPhongMaterial({ color: 0x00f2ff, wireframe: true });
+  const material = new THREE.MeshPhongMaterial({ 
+    color: 0x00f2ff, 
+    wireframe: true,
+    emissive: 0x004444
+  });
   const mesh = new THREE.Mesh(geometry, material);
   scene.add(mesh);
   
@@ -172,8 +205,91 @@ AURA.render3D((scene, camera, THREE) => {
   AURA.animate((time) => {
     mesh.rotation.x = time / 1000;
     mesh.rotation.y = time / 1500;
+    mesh.scale.setScalar(1 + AURA.utils.pulse(time, 0.5, 0.1));
   });
 });`
+  },
+  {
+    id: 'neural-grid',
+    label: 'Neural Grid',
+    code: `// Neural Grid Substrate
+AURA.animate((time) => {
+  ctx.fillStyle = 'black';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  // Base Grid
+  AURA.utils.grid(ctx, 40, 'rgba(0, 242, 255, 0.05)');
+  
+  // Scanlines
+  AURA.utils.scanline(ctx, 'rgba(0, 242, 255, 0.03)', 4);
+  
+  // Noise
+  AURA.utils.noise(ctx, 0.02);
+  
+  // Pulsing Core
+  const pulse = AURA.utils.pulse(time, 0.5, 50);
+  AURA.utils.bloom(ctx, 30 + pulse, '#00f2ff');
+  ctx.strokeStyle = '#00f2ff';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(canvas.width/2, canvas.height/2, 100 + pulse, 0, Math.PI*2);
+  ctx.stroke();
+  
+  // Reset composite for other elements
+  ctx.globalCompositeOperation = 'source-over';
+});`
+  },
+  {
+    id: 'react',
+    label: 'React Substrate',
+    code: `// React Neural Substrate
+const { useState, useEffect } = AURA.react;
+const html = AURA.html;
+
+function App() {
+  const [count, setCount] = useState(0);
+  
+  return html\`
+    <div className="text-center space-y-8 p-12 glass-morphic rounded-[3rem] border-blue-500/30">
+      <h1 className="text-4xl font-black tracking-tighter text-blue-400">React Substrate</h1>
+      <p className="text-neutral-400 font-mono">Neural Pulse Count: \${count}</p>
+      <button 
+        onClick=\${() => setCount(c => c + 1)}
+        className="px-8 py-4 bg-blue-600 rounded-2xl font-black uppercase tracking-widest hover:bg-blue-500 transition-all active:scale-95"
+      >
+        Increment Pulse
+      </button>
+    </div>
+  \`;
+}
+
+AURA.renderReact(App);`
+  },
+  {
+    id: 'angular',
+    label: 'Angular Substrate',
+    code: `// Angular Neural Substrate
+const template = \`
+  <div class="text-center space-y-8 p-12 glass-morphic rounded-[3rem] border-purple-500/30">
+    <h1 class="text-4xl font-black tracking-tighter text-purple-400">Angular Substrate</h1>
+    <p class="text-neutral-400 font-mono">Neural Flux: {{ flux }}</p>
+    <button 
+      (click)="increment()"
+      class="px-8 py-4 bg-purple-600 rounded-2xl font-black uppercase tracking-widest hover:bg-purple-500 transition-all active:scale-95"
+    >
+      Amplify Flux
+    </button>
+  </div>
+\`;
+
+class AppComponent {
+  flux = 0;
+  increment() {
+    this.flux++;
+  }
+}
+
+AURA.renderAngular(AppComponent, template);`
   }
 ];
 
@@ -190,6 +306,7 @@ const ForgeView: React.FC<ForgeViewProps> = ({ initialCode, onClearInjected }) =
   const [params, setParams] = useState<ForgeParam[]>([]);
   const [activeRightTab, setActiveRightTab] = useState<'editor' | 'config'>('editor');
   const [activeView, setActiveView] = useState<'agent' | 'editor' | 'preview' | 'console'>('agent');
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -334,7 +451,6 @@ const ForgeView: React.FC<ForgeViewProps> = ({ initialCode, onClearInjected }) =
   };
 
   const handleReset = async () => {
-    if (!confirm('Reset Codex memory and current plan?')) return;
     setMessages([]);
     setPlan([]);
     if (userId) {
@@ -382,32 +498,52 @@ const ForgeView: React.FC<ForgeViewProps> = ({ initialCode, onClearInjected }) =
       - AURA.clear(): Clears the 2D canvas.
       - AURA.animate((time, { telemetry }) => { ... }): Main animation loop.
       - AURA.render(htmlString): Renders HTML overlay.
+      - AURA.renderReact(Component): Renders a React component (use AURA.react and AURA.html).
+      - AURA.renderAngular(ComponentClass, template): Renders an Angular component.
       - AURA.render3D((scene, camera, THREE) => { ... }): Initializes Three.js.
       - AURA.onInput(type, ({x, y}) => { ... }): Handles 'mousedown', 'mousemove', 'touchstart', etc.
       - AURA.vibrate(pattern): Triggers haptics.
       - AURA.log(...args): Logs to the Neural Log.
-      - AURA.utils: { lerp(a,b,t), clamp(v,min,max), random(min,max), hsl(h,s,l), rgba(r,g,b,a) }
+      - AURA.react: Access to React (useState, useEffect, etc).
+      - AURA.html: Access to htm for React (use as html\`...\`).
+      - AURA.angular: Access to Angular core.
+      - AURA.utils: { 
+          lerp(a,b,t), 
+          clamp(v,min,max), 
+          random(min,max), 
+          hsl(h,s,l), 
+          rgba(r,g,b,a),
+          pulse(time, freq, amp),
+          glitch(ctx, x, y, w, h, intensity),
+          neon(ctx, color, blur),
+          grid(ctx, size, color),
+          scanline(ctx, color, spacing),
+          noise(ctx, intensity),
+          bloom(ctx, intensity, color)
+        }
       - ctx: 2D Canvas Context.
       - canvas: HTMLCanvasElement (1280x720).
       - window.THREE: Three.js access.
       
-      BEST PRACTICES:
-      - Use AURA.utils for math/colors.
-      - Use AURA.onInput for interactivity.
-      - Keep code modular.
-      - ALWAYS use AURA.animate for continuous visuals.
+      THEMATIC GUIDELINES:
+      - Aesthetic: Cyberpunk, high-tech, neural, neon, glitchy.
+      - Colors: Cyan (#00f2ff), Magenta (#ff00ff), Emerald (#10b981), Amber (#f59e0b).
+      - Effects: Use AURA.utils.neon for glow, AURA.utils.glitch for digital artifacts, and AURA.utils.grid for structure.
+      - Interactivity: Use AURA.onInput to make the substrate responsive to the user.
+      - Frameworks: Prefer React (AURA.renderReact) for complex UI. Use AURA.html for JSX-like syntax.
       `;
 
       // Phase 1: Planning
-      setMessages(prev => prev.map(m => m.id === agentId ? { ...m, content: 'Architecting multi-phase solution...', status: 'thinking' } : m));
+      setMessages(prev => prev.map(m => m.id === agentId ? { ...m, content: 'Architecting multi-phase neural solution...', status: 'thinking' } : m));
       
       const planResponse = await safeGenerateContent({
-        contents: `You are Aura Codex, a world-class agentic coding system.
+        contents: `You are Aura Codex, the supreme architect of the spatial substrate.
         Task: ${userPrompt}
         
         ${AURA_API_DOCS}
         
         Create a comprehensive, logical plan. Break it into 3-5 distinct technical phases.
+        Maintain the high-tech, neural aesthetic in your descriptions.
         Return the plan in JSON format: 
         { "plan": [ { "id": "1", "title": "Phase Title", "description": "Detailed technical goal" } ] }`,
         config: { responseMimeType: 'application/json' }
@@ -531,7 +667,7 @@ const ForgeView: React.FC<ForgeViewProps> = ({ initialCode, onClearInjected }) =
             <Brain className="w-5 h-5 text-blue-500 animate-pulse" />
             <h2 className="text-sm font-black uppercase tracking-[0.2em]">Codex Agent</h2>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 relative">
             {messages.length > 0 && messages[messages.length - 1]?.status !== 'complete' && messages[messages.length - 1]?.status !== 'error' && !isProcessing && (
               <button 
                 onClick={resumeAgentLoop}
@@ -541,13 +677,31 @@ const ForgeView: React.FC<ForgeViewProps> = ({ initialCode, onClearInjected }) =
                 <RefreshCw className="w-4 h-4" />
               </button>
             )}
-            <button 
-              onClick={handleReset}
-              className="p-2 hover:bg-white/5 rounded-lg text-neutral-600 hover:text-red-400 transition-all"
-              title="Reset Codex Memory"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
+            
+            {showResetConfirm ? (
+              <div className="flex items-center gap-1 animate-in fade-in slide-in-from-right-2">
+                <button 
+                  onClick={() => { handleReset(); setShowResetConfirm(false); }}
+                  className="px-2 py-1 bg-red-600 hover:bg-red-500 text-white text-[8px] font-black uppercase tracking-widest rounded transition-all"
+                >
+                  Confirm Purge
+                </button>
+                <button 
+                  onClick={() => setShowResetConfirm(false)}
+                  className="p-1 hover:bg-white/5 rounded text-neutral-500 hover:text-white transition-all"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ) : (
+              <button 
+                onClick={() => setShowResetConfirm(true)}
+                className="p-2 hover:bg-white/5 rounded-lg text-neutral-600 hover:text-red-400 transition-all"
+                title="Reset Codex Memory"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
 

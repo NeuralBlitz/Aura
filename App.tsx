@@ -194,14 +194,18 @@ export default function App() {
   const saveMessageToFirestore = async (threadId: string, message: Message) => {
     if (!auth.currentUser) return;
     try {
-      await setDoc(doc(db, `threads/${threadId}/messages`, message.id), {
+      const messageData: any = {
         id: message.id,
         threadId: threadId,
         userId: auth.currentUser.uid,
         role: message.role,
         text: message.text || '',
         timestamp: message.timestamp.getTime()
-      });
+      };
+      
+      if (message.imageUrl) messageData.imageUrl = message.imageUrl;
+      
+      await setDoc(doc(db, `threads/${threadId}/messages`, message.id), messageData);
     } catch (e) {
       console.error("Failed to save message", e);
     }
@@ -209,17 +213,21 @@ export default function App() {
 
   const handleSend = async (text: string = '', attachment?: string) => {
     if (!auth.currentUser) return;
-    const safeText = text || '';
+    const safeText = typeof text === 'string' ? text : '';
     haptic.trigger(HapticPattern.UI_INTERACT);
     
     let threadId = currentThreadId;
     if (threadId === 'main') {
       const newThreadId = Date.now().toString();
       try {
+        const title = safeText.trim() 
+          ? (safeText.substring(0, 40) + (safeText.length > 40 ? '...' : '')) 
+          : 'New Conversation';
+          
         await setDoc(doc(db, 'threads', newThreadId), {
           id: newThreadId,
           userId: auth.currentUser.uid,
-          title: safeText.substring(0, 40) + (safeText.length > 40 ? '...' : '') || 'New Conversation',
+          title: title,
           modelType: currentModel,
           updatedAt: Date.now(),
           createdAt: Date.now()
@@ -228,7 +236,7 @@ export default function App() {
         setCurrentThreadId(newThreadId);
       } catch (e) {
         console.error("Failed to create thread", e);
-        return; // Don't proceed if thread creation failed
+        return;
       }
     } else {
       try {
@@ -274,6 +282,17 @@ export default function App() {
       haptic.trigger(HapticPattern.ERROR);
       setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, text: e.message, isError: true, isStreaming: false } : m));
     } finally { setIsLoading(false); }
+  };
+
+  const handleRetry = (messageId: string) => {
+    const failedMsgIndex = messages.findIndex(m => m.id === messageId);
+    if (failedMsgIndex === -1) return;
+
+    const lastUserMsg = [...messages.slice(0, failedMsgIndex)].reverse().find(m => m.role === 'user');
+    if (!lastUserMsg) return;
+
+    setMessages(prev => prev.filter(m => m.id !== messageId));
+    handleSend(lastUserMsg.text, lastUserMsg.imageUrl);
   };
 
   const renderContent = () => {
@@ -327,7 +346,13 @@ export default function App() {
         ) : (
           <div className="pb-8">
             {messages.map((msg, i) => (
-              <ChatMessage key={msg.id} message={msg} isLast={i === messages.length - 1} onOpenArtifact={(art) => { setActiveArtifact(art); setIsArtifactOpen(true); }} />
+              <ChatMessage 
+                key={msg.id} 
+                message={msg} 
+                isLast={i === messages.length - 1} 
+                onRetry={() => handleRetry(msg.id)}
+                onOpenArtifact={(art) => { setActiveArtifact(art); setIsArtifactOpen(true); }} 
+              />
             ))}
             <div ref={bottomRef} className="h-4" />
           </div>

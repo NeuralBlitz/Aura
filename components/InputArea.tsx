@@ -1,6 +1,6 @@
 
 import React, { useRef, useState, useEffect } from 'react';
-import { Paperclip, ArrowUp, X, Sparkles, Eye, EyeOff, Trash2, Code2, List, Hash, Terminal } from 'lucide-react';
+import { Paperclip, ArrowUp, X, Sparkles, Eye, EyeOff, Trash2, Code2, List, Hash, Terminal, Mic, MicOff } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -16,9 +16,69 @@ const InputArea: React.FC<InputAreaProps> = ({ onSend, isLoading }) => {
   const [attachment, setAttachment] = useState<{ data: string, name: string } | null>(null);
   const [isFocused, setIsFocused] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [speechError, setSpeechError] = useState<string | null>(null);
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = true;
+      recognitionRef.current.interimResults = true;
+      recognitionRef.current.lang = window.navigator.language || 'en-US';
+
+      recognitionRef.current.onresult = (event: any) => {
+        let finalTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          }
+        }
+
+        if (finalTranscript) {
+          setText(prev => prev + (prev ? ' ' : '') + finalTranscript);
+        }
+      };
+
+      recognitionRef.current.onerror = (event: any) => {
+        console.error('Speech recognition error', event.error);
+        if (event.error === 'service-not-allowed') {
+          setSpeechError('Speech recognition service not allowed in this browser context.');
+        } else if (event.error === 'not-allowed') {
+          setSpeechError('Microphone permission denied.');
+        } else {
+          setSpeechError(`Speech recognition error: ${event.error}`);
+        }
+        setIsListening(false);
+        setTimeout(() => setSpeechError(null), 5000);
+      };
+
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+      };
+    }
+  }, []);
+
+  const toggleListening = () => {
+    setSpeechError(null);
+    if (isListening) {
+      recognitionRef.current?.stop();
+    } else {
+      try {
+        recognitionRef.current?.start();
+        setIsListening(true);
+      } catch (e) {
+        console.error("Could not start speech recognition", e);
+        setSpeechError("Could not start speech recognition.");
+        setTimeout(() => setSpeechError(null), 5000);
+      }
+    }
+  };
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -138,6 +198,19 @@ const InputArea: React.FC<InputAreaProps> = ({ onSend, isLoading }) => {
         {/* Primary Input Container */}
         <div className={`relative flex flex-col glass-morphic rounded-[3rem] transition-all duration-500 group ${isFocused ? 'ring-2 ring-blue-500/40 border-blue-500/40 shadow-[0_20px_80px_rgba(59,130,246,0.15)]' : 'shadow-[0_20px_60px_rgba(0,0,0,0.5)]'} ${isLoading ? 'opacity-50 grayscale pointer-events-none' : ''}`}>
           
+          {/* Error Display */}
+          {speechError && (
+            <div className="px-8 py-3 text-[10px] font-black uppercase tracking-widest text-red-500 bg-red-500/5 border-b border-red-500/10 animate-fade-in flex items-center justify-between group/error">
+              <div className="flex items-center gap-3">
+                <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                {speechError}
+              </div>
+              <button onClick={() => setSpeechError(null)} className="p-1 hover:bg-white/5 rounded-full transition-colors">
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+
           {/* Quick Format Bar */}
           {(isFocused || text.length > 0) && (
             <div className="flex items-center gap-1 px-8 pt-4 border-b border-white/[0.03] animate-fade-in">
@@ -196,6 +269,13 @@ const InputArea: React.FC<InputAreaProps> = ({ onSend, isLoading }) => {
             />
 
             <div className="flex items-center gap-2 pr-2">
+              <button
+                onClick={toggleListening}
+                className={`p-4 transition-all active:scale-90 rounded-[1.5rem] border ${isListening ? 'bg-red-500/20 border-red-500/50 text-red-500 animate-pulse' : 'bg-white/5 border-white/5 text-neutral-500 hover:text-blue-500 hover:border-blue-500/20'}`}
+                title={isListening ? "Stop Listening" : "Start Voice Input"}
+              >
+                {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+              </button>
               <button 
                 onClick={handleSend}
                 disabled={!text.trim() && !attachment}

@@ -9,7 +9,10 @@ export enum ModelType {
   CREATIVE_WRITING = 'creative-writing',
   CODING_ASSISTANT = 'coding-assistant',
   GENERAL_KNOWLEDGE = 'general-knowledge',
-  HUMOROUS_COMPANION = 'humorous-companion'
+  HUMOROUS_COMPANION = 'humorous-companion',
+  FRIENDLY_ASSISTANT = 'friendly-assistant',
+  PROFESSIONAL_TONE = 'professional-tone',
+  WITTY_COMPANION = 'witty-companion'
 }
 
 export interface GroundingSource {

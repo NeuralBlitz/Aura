@@ -9,6 +9,14 @@
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js"></script>
+    <script src="https://unpkg.com/@angular/core@17.3.0/bundles/core.umd.js"></script>
+    <script src="https://unpkg.com/@angular/common@17.3.0/bundles/common.umd.js"></script>
+    <script src="https://unpkg.com/@angular/compiler@17.3.0/bundles/compiler.umd.js"></script>
+    <script src="https://unpkg.com/@angular/platform-browser@17.3.0/bundles/platform-browser.umd.js"></script>
+    <script src="https://unpkg.com/@angular/platform-browser-dynamic@17.3.0/bundles/platform-browser-dynamic.umd.js"></script>
     <script>
       tailwind.config = {
         darkMode: 'class',
@@ -124,6 +132,15 @@
       /* Animated gradients for high-end feel */
       .bg-aurora {
         background: radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.08) 0%, rgba(0, 0, 0, 0) 100%);
+      }
+
+      @keyframes scan {
+        0% { transform: translateY(0); }
+        100% { transform: translateY(100vh); }
+      }
+
+      .animate-scan {
+        animation: scan 2s linear infinite;
       }
     </style>
   <script type="importmap">

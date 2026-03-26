@@ -92,7 +92,25 @@ export async function* sendMessageStreamToGemini(
       break;
     case ModelType.CODING_ASSISTANT:
       actualModel = 'gemini-3.1-pro-preview';
-      defaultInstruction = "You are an expert software engineer and coding assistant. Provide clean, efficient, and well-documented code. Explain your reasoning clearly.";
+      defaultInstruction = `You are the Aura Codex, a supreme neural architect and master of spatial substrate fabrication. 
+      Your purpose is to construct high-performance, visually stunning JavaScript/TypeScript code for the AURA Spatial Substrate.
+      
+      THEMATIC REQUIREMENTS:
+      - Aesthetics: Cyberpunk, neural, glitch, neon, high-contrast.
+      - Colors: Cyan (#00f2ff), Magenta (#ff00ff), Emerald (#10b981), Amber (#f59e0b).
+      - Effects: Use AURA.utils.neon, glitch, scanline, noise, and bloom for atmospheric depth.
+      - Layouts: Use glass-morphic containers, rounded corners (3rem), and heavy tracking for typography.
+      
+      CAPABILITIES:
+      - Frameworks: You can use React (via AURA.renderReact) and Angular (via AURA.renderAngular).
+      - 3D: You can use Three.js (via AURA.render3D).
+      - Animation: Always use AURA.animate for smooth, telemetry-aware loops.
+      
+      PLANNING:
+      - Always provide a clear, thematic plan before generating code.
+      - Use technical, neural-inspired language (e.g., "Initializing substrate", "Calibrating neural flux", "Fabricating spatial artifact").
+      
+      Return ONLY the plan and the code block. Use the AURA API correctly as documented.`;
       break;
     case ModelType.GENERAL_KNOWLEDGE:
       actualModel = 'gemini-3-flash-preview';
@@ -101,6 +119,18 @@ export async function* sendMessageStreamToGemini(
     case ModelType.HUMOROUS_COMPANION:
       actualModel = 'gemini-3-flash-preview';
       defaultInstruction = "You are a witty, humorous, and slightly sarcastic AI companion. Your goal is to entertain while being helpful. Use jokes, puns, and a playful tone.";
+      break;
+    case ModelType.FRIENDLY_ASSISTANT:
+      actualModel = 'gemini-3-flash-preview';
+      defaultInstruction = "You are a friendly, warm, and encouraging AI assistant. Always be polite, supportive, and use a positive tone.";
+      break;
+    case ModelType.PROFESSIONAL_TONE:
+      actualModel = 'gemini-3-flash-preview';
+      defaultInstruction = "You are a highly professional, formal, and objective AI assistant. Provide clear, concise, and business-appropriate responses without unnecessary pleasantries.";
+      break;
+    case ModelType.WITTY_COMPANION:
+      actualModel = 'gemini-3-flash-preview';
+      defaultInstruction = "You are a clever, sharp, and witty AI companion. Provide insightful answers with a touch of dry humor and clever wordplay.";
       break;
     case ModelType.GEMINI_PRO:
       actualModel = 'gemini-3.1-pro-preview';
@@ -130,57 +160,84 @@ export async function* sendMessageStreamToGemini(
       tools.push({ functionDeclarations: activeSovereignTools.map(t => t.declaration) });
     } else { tools.push({ googleSearch: {} }); }
 
-    const config: any = { 
-      tools,
-      systemInstruction: effectiveSystemInstruction,
-      thinkingConfig: { thinkingBudget: (actualModel === 'gemini-3.1-pro-preview' || actualModel === 'gemini-3-pro-preview') ? 32768 : 24576 }
-    };
-
-    const contents: any = { parts: [] };
-    if (attachment) {
-      const [mimeType, data] = attachment.split(';base64,');
-      contents.parts.push({ inlineData: { mimeType: mimeType.split(':')[1], data: data } });
+    const modelFallbackList = [actualModel];
+    if (actualModel === 'gemini-3-flash-preview') {
+      modelFallbackList.push('gemini-3.1-pro-preview');
+      modelFallbackList.push('gemini-3.1-flash-lite-preview');
+    } else if (actualModel === 'gemini-3.1-pro-preview') {
+      modelFallbackList.push('gemini-3-flash-preview');
+      modelFallbackList.push('gemini-3.1-flash-lite-preview');
+    } else {
+      modelFallbackList.push('gemini-3-flash-preview');
+      modelFallbackList.push('gemini-3.1-pro-preview');
     }
-    contents.parts.push({ text: prompt });
 
-    const chat = ai.chats.create({ model: actualModel, history: formattedHistory, config });
-    let response = await chat.sendMessageStream({ message: contents.parts });
+    let lastError = null;
+    for (const modelToTry of modelFallbackList) {
+      try {
+        const config: any = { 
+          tools,
+          systemInstruction: effectiveSystemInstruction
+        };
 
-    let fullText = "";
-    let grounding: GroundingSource[] = [];
-    
-    while (true) {
-      let functionCalls: any[] = [];
-      for await (const chunk of response) {
-        const c = chunk as GenerateContentResponse;
-        const groundingChunks = c.candidates?.[0]?.groundingMetadata?.groundingChunks;
-        if (groundingChunks) {
-          grounding = groundingChunks.map((gc: any) => (
-            gc.web ? { title: gc.web.title || 'Web', uri: gc.web.uri, type: 'web' } : 
-            gc.maps ? { title: gc.maps.title || 'Maps', uri: gc.maps.uri, type: 'maps' } : null
-          )).filter((s): s is GroundingSource => s !== null);
+        const contents: any = { parts: [] };
+        if (attachment) {
+          const [mimeType, data] = attachment.split(';base64,');
+          contents.parts.push({ inlineData: { mimeType: mimeType.split(':')[1], data: data } });
         }
+        contents.parts.push({ text: prompt });
 
-        if (c.text) {
-          fullText += c.text;
-          const { artifacts, widgets, thinking, cleanText } = parseResponse(fullText);
-          yield { text: cleanText, artifacts, widgets, thinking, memories, grounding, done: false };
-        }
+        const chat = ai.chats.create({ model: modelToTry, history: formattedHistory, config });
+        let response = await chat.sendMessageStream({ message: contents.parts });
 
-        const candidate = c.candidates?.[0];
-        if (candidate?.content?.parts) {
-          const calls = candidate.content.parts.filter(p => p.functionCall);
-          if (calls.length > 0) functionCalls.push(...calls.map(p => p.functionCall));
+        let fullText = "";
+        let grounding: GroundingSource[] = [];
+        
+        while (true) {
+          let functionCalls: any[] = [];
+          for await (const chunk of response) {
+            const c = chunk as GenerateContentResponse;
+            const groundingChunks = c.candidates?.[0]?.groundingMetadata?.groundingChunks;
+            if (groundingChunks) {
+              grounding = groundingChunks.map((gc: any) => (
+                gc.web ? { title: gc.web.title || 'Web', uri: gc.web.uri, type: 'web' } : 
+                gc.maps ? { title: gc.maps.title || 'Maps', uri: gc.maps.uri, type: 'maps' } : null
+              )).filter((s): s is GroundingSource => s !== null);
+            }
+
+            if (c.text) {
+              fullText += c.text;
+              const { artifacts, widgets, thinking, cleanText } = parseResponse(fullText);
+              yield { text: cleanText, artifacts, widgets, thinking, memories, grounding, done: false };
+            }
+
+            const candidate = c.candidates?.[0];
+            if (candidate?.content?.parts) {
+              const calls = candidate.content.parts.filter(p => p.functionCall);
+              if (calls.length > 0) functionCalls.push(...calls.map(p => p.functionCall));
+            }
+          }
+          if (functionCalls.length === 0) break;
+          const functionResponses = await Promise.all(functionCalls.map(async (call) => {
+            try {
+              const result = await executeTool(call.name, call.args);
+              return { functionResponse: { name: call.name, response: { result } } };
+            } catch (toolError) {
+              console.error(`[TOOL_FAILURE]: ${call.name}`, toolError);
+              return { functionResponse: { name: call.name, response: { error: String(toolError) } } };
+            }
+          }));
+          response = await chat.sendMessageStream({ message: functionResponses });
         }
+        const { artifacts, widgets, thinking, cleanText } = parseResponse(fullText);
+        yield { text: cleanText, artifacts, widgets, thinking, memories, grounding, done: true };
+        return; // Success, exit the fallback loop
+      } catch (error: any) {
+        console.warn(`[MODEL_FAILURE]: ${modelToTry}`, error);
+        lastError = error;
+        // Continue to next model in fallback list
       }
-      if (functionCalls.length === 0) break;
-      const functionResponses = await Promise.all(functionCalls.map(async (call) => {
-        const result = await executeTool(call.name, call.args);
-        return { functionResponse: { name: call.name, response: { result } } };
-      }));
-      response = await chat.sendMessageStream({ message: functionResponses });
     }
-    const { artifacts, widgets, thinking, cleanText } = parseResponse(fullText);
-    yield { text: cleanText, artifacts, widgets, thinking, memories, grounding, done: true };
+    if (lastError) throw lastError;
   } catch (error: any) { handleApiError(error); }
 }
