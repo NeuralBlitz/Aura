@@ -75,6 +75,7 @@ class VaultService {
 
   public async encrypt(text: string): Promise<string> {
     if (!this.key || this.status !== 'unlocked') throw new Error("Vault Locked");
+    if (!text) return "";
     
     const encoder = new TextEncoder();
     const iv = window.crypto.getRandomValues(new Uint8Array(12));
@@ -90,23 +91,40 @@ class VaultService {
     result.set(iv);
     result.set(new Uint8Array(encrypted), iv.length);
     
-    return btoa(String.fromCharCode(...result));
+    // Use a more robust base64 conversion
+    return btoa(Array.from(result).map(b => String.fromCharCode(b)).join(''));
   }
 
   public async decrypt(encryptedBase64: string): Promise<string> {
     if (!this.key || this.status !== 'unlocked') throw new Error("Vault Locked");
+    if (!encryptedBase64 || encryptedBase64.trim() === "") return "";
     
-    const data = new Uint8Array(atob(encryptedBase64).split('').map(c => c.charCodeAt(0)));
-    const iv = data.slice(0, 12);
-    const encrypted = data.slice(12);
-    
-    const decrypted = await window.crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv },
-      this.key,
-      encrypted
-    );
+    try {
+      const binaryString = atob(encryptedBase64.trim());
+      const data = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        data[i] = binaryString.charCodeAt(i);
+      }
 
-    return new TextDecoder().decode(decrypted);
+      const iv = data.slice(0, 12);
+      const encrypted = data.slice(12);
+      
+      if (encrypted.length === 0) throw new Error("Malformed payload");
+
+      const decrypted = await window.crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv },
+        this.key,
+        encrypted
+      );
+
+      return new TextDecoder().decode(decrypted);
+    } catch(e: any) {
+      console.error("Decryption failed:", e);
+      if (e.message?.includes("expected pattern")) {
+        throw new Error("Neural Decode Failed: Data pattern corrupt or malformed.");
+      }
+      throw e;
+    }
   }
 }
 

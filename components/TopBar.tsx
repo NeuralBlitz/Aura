@@ -1,8 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, Plus, Settings, Sparkles, Shield, Cpu, Activity, Zap, ShieldCheck, ShieldAlert, Wifi, MessageSquare, BookOpen, Laugh } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { 
+  ChevronDown, Plus, Settings, Sparkles, Shield, Cpu, Activity, 
+  Zap, ShieldCheck, ShieldAlert, Wifi, MessageSquare, BookOpen, Laugh 
+} from 'lucide-react';
 import { ModelType, UserProfile, Theme } from '../types';
 import { telemetryService, TelemetryData } from '../services/telemetryService';
+import { haptic, HapticPattern } from '../services/hapticService';
 
 interface TopBarProps {
   currentModel: ModelType;
@@ -24,7 +29,7 @@ const TopBar: React.FC<TopBarProps> = ({
   onOpenPrompts,
   userProfile 
 }) => {
-  const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [telemetry, setTelemetry] = useState<TelemetryData | null>(null);
 
   useEffect(() => {
@@ -48,19 +53,31 @@ const TopBar: React.FC<TopBarProps> = ({
   const coherence = telemetry?.coherence || 100;
 
   return (
-    <nav className="fixed top-0 left-0 right-0 h-20 z-[90] glass-morphic bg-black/40 backdrop-blur-3xl flex items-center justify-between px-8 pt-safe border-b border-white/10 transition-all duration-1000">
+    <nav className="fixed top-0 left-0 right-0 h-20 z-[90] glass-morphic bg-black/40 backdrop-blur-3xl flex items-center justify-between px-8 pt-safe border-b border-white/10">
       <div className="flex items-center gap-6">
-        <button 
+        <motion.button 
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
           onClick={onOpenProfile}
-          className="relative group active:scale-90 transition-transform shrink-0"
+          className="relative group shrink-0"
         >
           <div className={`absolute inset-0 blur-xl opacity-30 group-hover:opacity-60 transition-all rounded-full ${coherence > 70 ? 'bg-blue-500' : 'bg-amber-500'}`} />
-          <img src={userProfile.avatarUrl} alt="User" className="relative w-10 h-10 rounded-full object-cover border-2 border-white/20 shadow-2xl" />
-        </button>
+          <img 
+            src={userProfile.avatarUrl} 
+            alt="User" 
+            className="relative w-10 h-10 rounded-full object-cover border-2 border-white/20 shadow-2xl" 
+            referrerPolicy="no-referrer"
+          />
+        </motion.button>
         
         <div className="relative">
-          <button 
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
+          <motion.button 
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => {
+              setIsMenuOpen(!isMenuOpen);
+              haptic.trigger(HapticPattern.UI_INTERACT);
+            }}
             className="flex items-center gap-4 px-5 py-2.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all shadow-lg group"
           >
             <div className={`p-1.5 rounded-lg bg-black border border-white/5 ${modelInfo[currentModel].color}`}>
@@ -70,68 +87,74 @@ const TopBar: React.FC<TopBarProps> = ({
               {modelInfo[currentModel].name}
             </span>
             <ChevronDown className={`w-4 h-4 text-neutral-600 transition-transform group-hover:text-white ${isMenuOpen ? 'rotate-180' : ''}`} />
-          </button>
+          </motion.button>
 
-          {isMenuOpen && (
-            <div className="absolute top-full left-0 mt-3 w-64 glass-morphic rounded-3xl overflow-hidden shadow-2xl animate-scale-in p-2 ring-1 ring-white/10">
-              {Object.values(ModelType).map((model) => (
-                <button
-                  key={model}
-                  onClick={() => {
-                    onModelChange(model);
-                    setIsMenuOpen(false);
-                  }}
-                  className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm transition-all hover:bg-white/10 ${currentModel === model ? 'bg-white/5 text-white' : 'text-neutral-500'}`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-xl bg-black border border-white/5 ${currentModel === model ? modelInfo[model].color : ''}`}>
-                       {modelInfo[model].icon}
+          <AnimatePresence>
+            {isMenuOpen && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                className="absolute top-full left-0 mt-3 w-64 glass-morphic rounded-3xl overflow-hidden shadow-2xl p-2 ring-1 ring-white/10"
+              >
+                {Object.values(ModelType).map((model) => (
+                  <button
+                    key={model}
+                    onClick={() => {
+                      onModelChange(model);
+                      setIsMenuOpen(false);
+                      haptic.trigger(HapticPattern.SUCCESS);
+                    }}
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm transition-all hover:bg-white/10 ${currentModel === model ? 'bg-white/5 text-white' : 'text-neutral-500'}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded-xl bg-black border border-white/5 ${currentModel === model ? modelInfo[model].color : ''}`}>
+                         {modelInfo[model].icon}
+                      </div>
+                      <div className="flex flex-col text-left">
+                        <span className="font-black text-[10px] uppercase tracking-widest">{modelInfo[model].name}</span>
+                        <span className="text-[8px] text-neutral-600 font-bold uppercase">v7.0 Engine</span>
+                      </div>
                     </div>
-                    <div className="flex flex-col text-left">
-                      <span className="font-black text-[10px] uppercase tracking-widest">{modelInfo[model].name}</span>
-                      <span className="text-[8px] text-neutral-600 font-bold uppercase">v7.0 Engine</span>
-                    </div>
-                  </div>
-                  {currentModel === model && <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shadow-[0_0_8px_rgba(59,130,246,1)]" />}
-                </button>
-              ))}
-            </div>
-          )}
+                    {currentModel === model && <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shadow-[0_0_8px_rgba(59,130,246,1)]" />}
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
       <div className="flex items-center gap-3">
-        {/* Coherence Indicator */}
         <div className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${coherence > 70 ? 'bg-blue-600/10 border-blue-500/20 text-blue-400' : 'bg-amber-600/10 border-amber-500/20 text-amber-400'}`}>
            {coherence > 70 ? <Wifi className="w-3 h-3" /> : <ShieldAlert className="w-3 h-3" />}
            <span className="text-[9px] font-black uppercase tracking-widest">{coherence}%</span>
         </div>
 
-        <button 
-          onClick={onOpenPrompts}
-          className="p-2.5 text-neutral-400 hover:text-white bg-white/5 border border-white/5 rounded-2xl transition-all active:scale-90 shadow-sm"
-          title="Custom Prompts"
-        >
-          <BookOpen className="w-5 h-5" />
-        </button>
-        <button 
-          onClick={onOpenHistory}
-          className="p-2.5 text-neutral-400 hover:text-white bg-white/5 border border-white/5 rounded-2xl transition-all active:scale-90 shadow-sm"
-        >
-          <MessageSquare className="w-5 h-5" />
-        </button>
-        <button 
-          onClick={onNewChat}
-          className="p-2.5 text-neutral-400 hover:text-white bg-white/5 border border-white/5 rounded-2xl transition-all active:scale-90 shadow-sm"
-        >
-          <Plus className="w-5 h-5" />
-        </button>
-        <button 
-          onClick={onOpenProfile}
-          className="p-2.5 text-neutral-400 hover:text-white bg-white/5 border border-white/5 rounded-2xl transition-all active:scale-90 shadow-sm"
-        >
-          <Settings className="w-5 h-5" />
-        </button>
+        <div className="h-8 w-[1px] bg-white/10 mx-2 hidden sm:block" />
+
+        <div className="flex items-center gap-2">
+          {[
+            { icon: <BookOpen className="w-5 h-5" />, onClick: onOpenPrompts, title: "Custom Prompts" },
+            { icon: <MessageSquare className="w-5 h-5" />, onClick: onOpenHistory, title: "Chat History" },
+            { icon: <Plus className="w-5 h-5" />, onClick: onNewChat, title: "New Chat" },
+            { icon: <Settings className="w-5 h-5" />, onClick: onOpenProfile, title: "Settings" }
+          ].map((btn, i) => (
+            <motion.button 
+              key={i}
+              whileHover={{ scale: 1.1, backgroundColor: 'rgba(255,255,255,0.1)' }}
+              whileTap={{ scale: 0.9 }}
+              onClick={() => {
+                btn.onClick();
+                haptic.trigger(HapticPattern.UI_INTERACT);
+              }}
+              className="p-2.5 text-neutral-400 hover:text-white bg-white/5 border border-white/5 rounded-2xl transition-all shadow-sm"
+              title={btn.title}
+            >
+              {btn.icon}
+            </motion.button>
+          ))}
+        </div>
       </div>
     </nav>
   );

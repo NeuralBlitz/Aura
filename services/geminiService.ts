@@ -139,7 +139,7 @@ export async function* sendMessageStreamToGemini(
       actualModel = 'gemini-2.5-flash-image';
       break;
     case ModelType.GEMINI_INTELLIGENCE:
-      actualModel = 'gemini-2.5-flash-native-audio-preview-12-2025';
+      actualModel = 'gemini-3.1-flash-live-preview';
       break;
     case ModelType.GEMINI_FLASH:
     default:
@@ -149,16 +149,22 @@ export async function* sendMessageStreamToGemini(
 
   let effectiveSystemInstruction = (systemInstruction || defaultInstruction) + GEN_UI_INSTRUCTIONS;
   if (memories.length > 0) {
-    effectiveSystemInstruction += `\n\nContext:\n${memories.map(m => m.text).join('\n')}`;
+    effectiveSystemInstruction += `\n\nContext from memories:\n${memories.map(m => m.text).join('\n')}`;
   }
 
   try {
-    const formattedHistory = history.map(msg => ({ role: msg.role, parts: [{ text: msg.text }] }));
-    const tools: any[] = [];
+    const formattedHistory = history.map(msg => ({ 
+      role: msg.role === 'user' ? 'user' : 'model', 
+      parts: [{ text: msg.text }] 
+    }));
+
     const activeSovereignTools = SOVEREIGN_TOOLS.filter(t => enabledToolIds.includes(t.id));
+    const tools: any[] = [];
     if (activeSovereignTools.length > 0) {
       tools.push({ functionDeclarations: activeSovereignTools.map(t => t.declaration) });
-    } else { tools.push({ googleSearch: {} }); }
+    } else {
+      tools.push({ googleSearch: {} });
+    }
 
     const modelFallbackList = [actualModel];
     if (actualModel === 'gemini-3-flash-preview') {
@@ -169,34 +175,38 @@ export async function* sendMessageStreamToGemini(
       modelFallbackList.push('gemini-3.1-flash-lite-preview');
     } else {
       modelFallbackList.push('gemini-3-flash-preview');
-      modelFallbackList.push('gemini-3.1-pro-preview');
     }
 
     let lastError = null;
     for (const modelToTry of modelFallbackList) {
       try {
-        const config: any = { 
-          tools,
-          systemInstruction: effectiveSystemInstruction
-        };
-
-        const contents: any = { parts: [] };
+        const contents = [...formattedHistory];
+        const currentParts: any[] = [];
         if (attachment) {
           const [mimeType, data] = attachment.split(';base64,');
-          contents.parts.push({ inlineData: { mimeType: mimeType.split(':')[1], data: data } });
+          currentParts.push({ inlineData: { mimeType: mimeType.split(':')[1], data: data } });
         }
-        contents.parts.push({ text: prompt });
+        currentParts.push({ text: prompt });
+        contents.push({ role: 'user', parts: currentParts });
 
-        const chat = ai.chats.create({ model: modelToTry, history: formattedHistory, config });
-        let response = await chat.sendMessageStream({ message: contents.parts });
+        let responseStream = await ai.models.generateContentStream({
+          model: modelToTry,
+          contents,
+          config: {
+            systemInstruction: effectiveSystemInstruction,
+            tools,
+          }
+        });
 
         let fullText = "";
         let grounding: GroundingSource[] = [];
         
         while (true) {
           let functionCalls: any[] = [];
-          for await (const chunk of response) {
+          for await (const chunk of responseStream) {
             const c = chunk as GenerateContentResponse;
+            
+            // Extract grounding metadata if available
             const groundingChunks = c.candidates?.[0]?.groundingMetadata?.groundingChunks;
             if (groundingChunks) {
               grounding = groundingChunks.map((gc: any) => (
@@ -217,7 +227,10 @@ export async function* sendMessageStreamToGemini(
               if (calls.length > 0) functionCalls.push(...calls.map(p => p.functionCall));
             }
           }
+
           if (functionCalls.length === 0) break;
+
+          // Handle function calls
           const functionResponses = await Promise.all(functionCalls.map(async (call) => {
             try {
               const result = await executeTool(call.name, call.args);
@@ -227,15 +240,34 @@ export async function* sendMessageStreamToGemini(
               return { functionResponse: { name: call.name, response: { error: String(toolError) } } };
             }
           }));
-          response = await chat.sendMessageStream({ message: functionResponses });
+
+          // Append function calls and responses to contents for the next turn
+          contents.push({ 
+            role: 'model', 
+            parts: functionCalls.map(call => ({ functionCall: call })) as any
+          });
+          contents.push({ 
+            role: 'user', 
+            parts: functionResponses as any
+          });
+
+          // Continue the stream with the new contents
+          responseStream = await ai.models.generateContentStream({
+            model: modelToTry,
+            contents,
+            config: {
+              systemInstruction: effectiveSystemInstruction,
+              tools,
+            }
+          });
         }
+
         const { artifacts, widgets, thinking, cleanText } = parseResponse(fullText);
         yield { text: cleanText, artifacts, widgets, thinking, memories, grounding, done: true };
-        return; // Success, exit the fallback loop
+        return; // Success
       } catch (error: any) {
         console.warn(`[MODEL_FAILURE]: ${modelToTry}`, error);
         lastError = error;
-        // Continue to next model in fallback list
       }
     }
     if (lastError) throw lastError;

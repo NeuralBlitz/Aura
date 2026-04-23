@@ -20,6 +20,8 @@ const ArtifactCanvas: React.FC<ArtifactCanvasProps> = ({ artifact, isOpen, onClo
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   
+  const [canvasKey, setCanvasKey] = useState(0);
+  
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -42,18 +44,18 @@ const ArtifactCanvas: React.FC<ArtifactCanvasProps> = ({ artifact, isOpen, onClo
     setShowConsole(true);
     setIsRunning(true);
     setLogs([]); 
+    setCanvasKey(prev => prev + 1);
     
-    requestAnimationFrame(() => {
-      setTimeout(async () => {
-        if (!canvasRef.current && showConsole) {
-          setTimeout(handleRun, 100);
-          return;
-        }
-        const newLogs = await executeCode(artifact.content, canvasRef.current || undefined);
-        setLogs(newLogs);
+    // Give React a tick to recreate the canvas
+    setTimeout(async () => {
+      if (!canvasRef.current) {
         setIsRunning(false);
-      }, 150);
-    });
+        return;
+      }
+      const newLogs = await executeCode(artifact.content, canvasRef.current);
+      setLogs(newLogs);
+      setIsRunning(false);
+    }, 100);
   };
 
   return (
@@ -143,6 +145,7 @@ const ArtifactCanvas: React.FC<ArtifactCanvasProps> = ({ artifact, isOpen, onClo
              <div className="flex-1 flex flex-col min-h-0">
                <div className="relative bg-neutral-900/20 flex items-center justify-center p-6 border-b border-white/5 min-h-[220px] overflow-hidden group shrink-0">
                   <canvas 
+                    key={canvasKey}
                     ref={canvasRef} 
                     width={1280} 
                     height={720} 

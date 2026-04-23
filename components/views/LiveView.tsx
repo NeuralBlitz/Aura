@@ -6,9 +6,11 @@ import ModuleLayout from '../ui/ModuleLayout';
 
 interface LiveViewProps {
   onClose: () => void;
+  hasPlatformKey: boolean;
+  onSelectKey: () => Promise<void>;
 }
 
-const LiveView: React.FC<LiveViewProps> = ({ onClose }) => {
+const LiveView: React.FC<LiveViewProps> = ({ onClose, hasPlatformKey, onSelectKey }) => {
   const [status, setStatus] = useState<LiveStatus>('disconnected');
   const [isMicOn, setIsMicOn] = useState(true);
   const [isCamOn, setIsCamOn] = useState(true);
@@ -49,10 +51,11 @@ const LiveView: React.FC<LiveViewProps> = ({ onClose }) => {
     };
 
     const init = () => {
-      // The client.connect method will internally parallelize the warmup and API handshake
-      client.connect({
-        systemInstruction: SYSTEM_INSTRUCTION
-      });
+      if (hasPlatformKey) {
+        client.connect({
+          systemInstruction: SYSTEM_INSTRUCTION
+        });
+      }
     };
 
     init();
@@ -60,7 +63,7 @@ const LiveView: React.FC<LiveViewProps> = ({ onClose }) => {
     return () => {
       client.disconnect();
     };
-  }, []);
+  }, [hasPlatformKey]);
 
   // Idle Interaction Timer
   useEffect(() => {
@@ -186,11 +189,20 @@ const LiveView: React.FC<LiveViewProps> = ({ onClose }) => {
                 }
                 prevFrameRef.current = new Uint8ClampedArray(currentData);
 
-                const base64 = canvasRef.current.toDataURL('image/jpeg', 0.6).split(',')[1];
-                clientRef.current.sendVideoFrame(base64);
+                try {
+                  const base64Data = canvasRef.current.toDataURL('image/jpeg', 0.6);
+                  if (base64Data && base64Data.includes(',')) {
+                    const base64 = base64Data.split(',')[1];
+                    if (base64 && base64.length > 10) { // Basic sanity check
+                      clientRef.current.sendVideoFrame(base64);
+                    }
+                  }
+                } catch (e) {
+                  console.warn("[AURA_LIVE]: Frame capture skipped", e);
+                }
               }
             }
-          }, 500); // Send 2 FPS for more proactive monitoring
+          }, 500);
         } catch (e) {
           console.error("Stream error", e);
           setIsCamOn(false);
@@ -279,84 +291,111 @@ const LiveView: React.FC<LiveViewProps> = ({ onClose }) => {
 
         {/* Main Viewport */}
         <div className="flex-1 relative z-10 flex flex-col items-center justify-center p-8">
-          <div className="relative w-full max-w-4xl aspect-video glass-morphic bg-black/40 rounded-[3rem] border border-white/10 overflow-hidden shadow-2xl group">
-            {/* Video Feed */}
-            <video 
-              ref={videoRef} 
-              autoPlay 
-              playsInline 
-              muted 
-              className={`w-full h-full object-cover transition-opacity duration-1000 ${isCamOn || isScreenSharing ? 'opacity-100' : 'opacity-0'}`}
-            />
-            
-            {/* Canvas for motion detection (hidden) */}
-            <canvas ref={canvasRef} className="hidden" />
-
-            {/* Placeholder / Offline State */}
-            {(!isCamOn && !isScreenSharing) && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900/40 backdrop-blur-3xl">
-                <div className="w-32 h-32 rounded-full bg-blue-600/10 border border-blue-500/20 flex items-center justify-center mb-8">
-                   <MonitorOff className="w-12 h-12 text-neutral-600" />
-                </div>
-                <p className="text-xs font-black text-neutral-500 uppercase tracking-[0.3em]">Visual Substrate Offline</p>
+          {!hasPlatformKey ? (
+            <div className="relative w-full max-w-4xl aspect-video glass-morphic bg-black/40 rounded-[3rem] border border-white/10 overflow-hidden shadow-2xl flex flex-col items-center justify-center p-12 text-center">
+              <div className="w-24 h-24 rounded-full bg-blue-600/10 border border-blue-500/20 flex items-center justify-center mb-8">
+                 <Zap className="w-10 h-10 text-blue-500 animate-pulse" />
               </div>
-            )}
-
-            {/* Overlay HUD */}
-            <div className="absolute inset-0 pointer-events-none p-8 flex flex-col justify-between">
-               <div className="flex justify-between items-start">
-                  <div className="flex gap-3">
-                     <div className="px-3 py-1.5 bg-black/60 backdrop-blur-md border border-white/10 rounded-xl flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                        <span className="text-[9px] font-black text-white uppercase tracking-widest">Live Feed</span>
-                     </div>
-                     {isMotionDetected && (
-                        <div className="px-3 py-1.5 bg-blue-600/80 backdrop-blur-md border border-blue-500/30 rounded-xl flex items-center gap-2 animate-bounce">
-                           <Zap className="w-3 h-3 text-white" />
-                           <span className="text-[9px] font-black text-white uppercase tracking-widest">Motion Detected</span>
-                        </div>
-                     )}
-                  </div>
-                  <div className="px-3 py-1.5 bg-black/60 backdrop-blur-md border border-white/10 rounded-xl">
-                     <span className="text-[9px] font-mono text-neutral-400 uppercase tracking-widest">00:00:00</span>
-                  </div>
-               </div>
-
-               <div className="flex justify-center">
-                  <div ref={visualizerRef} className="flex items-end gap-1 h-12">
-                    {Array.from({ length: 32 }).map((_, i) => (
-                       <div 
-                          key={i} 
-                          className="w-1 bg-blue-500/40 rounded-full transition-all duration-75"
-                          style={{ 
-                            height: `${Math.max(4, volume * Math.random() * 100)}%`,
-                            opacity: 0.3 + (volume * 0.7)
-                          }} 
-                       />
-                    ))}
-                  </div>
-               </div>
+              <h3 className="text-2xl font-black text-white mb-4 italic tracking-tight">Neural Key Required</h3>
+              <p className="text-sm text-neutral-400 mb-10 max-w-md leading-relaxed">
+                Aura Live requires a paid Gemini API key to establish a high-bandwidth neural link. 
+                Please select your key to proceed.
+              </p>
+              <button 
+                onClick={onSelectKey}
+                className="px-10 py-4 bg-blue-600 hover:bg-blue-500 rounded-2xl text-sm font-black text-white uppercase tracking-widest transition-all shadow-[0_0_30px_rgba(59,130,246,0.3)] hover:scale-105 active:scale-95"
+              >
+                 Select Neural Key
+              </button>
+              <a 
+                href="https://ai.google.dev/gemini-api/docs/billing" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="mt-6 text-[10px] font-bold text-neutral-600 uppercase tracking-widest hover:text-neutral-400 transition-colors"
+              >
+                Learn about billing
+              </a>
             </div>
+          ) : (
+            <div className="relative w-full max-w-4xl aspect-video glass-morphic bg-black/40 rounded-[3rem] border border-white/10 overflow-hidden shadow-2xl group">
+              {/* Video Feed */}
+              <video 
+                ref={videoRef} 
+                autoPlay 
+                playsInline 
+                muted 
+                className={`w-full h-full object-cover transition-opacity duration-1000 ${isCamOn || isScreenSharing ? 'opacity-100' : 'opacity-0'}`}
+              />
+              
+              {/* Canvas for motion detection (hidden) */}
+              <canvas ref={canvasRef} className="hidden" />
 
-            {/* Error State */}
-            {error && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-red-900/20 backdrop-blur-3xl p-12 text-center">
-                <AlertTriangle className="w-16 h-16 text-red-500 mb-6" />
-                <h3 className="text-xl font-black text-white mb-2 italic">Neural Link Failure</h3>
-                <p className="text-xs text-red-400/80 mb-8 max-w-xs">{error}</p>
-                <button onClick={handleRetry} className="px-8 py-3 bg-red-600 hover:bg-red-500 rounded-xl text-xs font-black text-white uppercase tracking-widest transition-all">
-                   Retry Handshake
-                </button>
+              {/* Placeholder / Offline State */}
+              {(!isCamOn && !isScreenSharing) && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900/40 backdrop-blur-3xl">
+                  <div className="w-32 h-32 rounded-full bg-blue-600/10 border border-blue-500/20 flex items-center justify-center mb-8">
+                     <MonitorOff className="w-12 h-12 text-neutral-600" />
+                  </div>
+                  <p className="text-xs font-black text-neutral-500 uppercase tracking-[0.3em]">Visual Substrate Offline</p>
+                </div>
+              )}
+
+              {/* Overlay HUD */}
+              <div className="absolute inset-0 pointer-events-none p-8 flex flex-col justify-between">
+                 <div className="flex justify-between items-start">
+                    <div className="flex gap-3">
+                       <div className="px-3 py-1.5 bg-black/60 backdrop-blur-md border border-white/10 rounded-xl flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                          <span className="text-[9px] font-black text-white uppercase tracking-widest">Live Feed</span>
+                       </div>
+                       {isMotionDetected && (
+                          <div className="px-3 py-1.5 bg-blue-600/80 backdrop-blur-md border border-blue-500/30 rounded-xl flex items-center gap-2 animate-bounce">
+                             <Zap className="w-3 h-3 text-white" />
+                             <span className="text-[9px] font-black text-white uppercase tracking-widest">Motion Detected</span>
+                          </div>
+                       )}
+                    </div>
+                    <div className="px-3 py-1.5 bg-black/60 backdrop-blur-md border border-white/10 rounded-xl">
+                       <span className="text-[9px] font-mono text-neutral-400 uppercase tracking-widest">00:00:00</span>
+                    </div>
+                 </div>
+
+                 <div className="flex justify-center">
+                    <div ref={visualizerRef} className="flex items-end gap-1 h-12">
+                      {Array.from({ length: 32 }).map((_, i) => (
+                         <div 
+                            key={i} 
+                            className="w-1 bg-blue-500/40 rounded-full transition-all duration-75"
+                            style={{ 
+                              height: `${Math.max(4, volume * Math.random() * 100)}%`,
+                              opacity: 0.3 + (volume * 0.7)
+                            }} 
+                         />
+                      ))}
+                    </div>
+                 </div>
               </div>
-            )}
-          </div>
+
+              {/* Error State */}
+              {error && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-red-900/20 backdrop-blur-3xl p-12 text-center">
+                  <AlertTriangle className="w-16 h-16 text-red-500 mb-6" />
+                  <h3 className="text-xl font-black text-white mb-2 italic">Neural Link Failure</h3>
+                  <p className="text-xs text-red-400/80 mb-8 max-w-xs">{error}</p>
+                  <button onClick={handleRetry} className="px-8 py-3 bg-red-600 hover:bg-red-500 rounded-xl text-xs font-black text-white uppercase tracking-widest transition-all">
+                     Retry Handshake
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           <p className="mt-12 text-sm font-medium text-neutral-400 animate-pulse transition-all">
              {status === 'connected' ? (
                interactionMode === 'motion' ? 'Analyzing Visual Delta...' :
                interactionMode === 'idle_chat' ? 'Sparking Conversation...' :
                volume > 0.1 ? 'Speaking...' : 'Observing Workspace...'
-             ) : status === 'reconnecting' ? 'Recovering Connection...' : 'Connecting...'}
+             ) : status === 'reconnecting' ? 'Recovering Connection...' : status === 'connecting' ? 'Connecting...' : 'Neural Link Idle'}
           </p>
         </div>
 

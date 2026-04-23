@@ -62,7 +62,10 @@ export const executeCode = async (
           if (!cachedCtx) {
             cachedCtx = canvas.getContext('2d');
           }
-          if (!cachedCtx) return undefined;
+          if (!cachedCtx) {
+            // Return a no-op for functions, undefined for properties if 2D context is unavailable (e.g. WebGL active)
+            return typeof HTMLCanvasElement.prototype[prop] === 'function' ? () => {} : undefined;
+          }
           const value = cachedCtx[prop];
           return typeof value === 'function' ? value.bind(cachedCtx) : value;
         },
@@ -93,69 +96,113 @@ export const executeCode = async (
           lerp: (a, b, t) => a + (b - a) * t,
           clamp: (v, min, max) => Math.max(min, Math.min(max, v)),
           random: (min, max) => Math.random() * (max - min) + min,
+          dist: (x1, y1, x2, y2) => Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2),
           hsl: (h, s, l) => \`hsl(\${h}, \${s}%, \${l}%)\`,
           rgba: (r, g, b, a) => \`rgba(\${r}, \${g}, \${b}, \${a})\`,
           pulse: (time, freq = 1, amp = 1) => Math.sin(time * 0.001 * freq * Math.PI * 2) * amp,
           glitch: (targetCtx, x, y, w, h, intensity = 1) => {
-            const c = targetCtx || ctx;
-            if (!c) return;
-            const offset = Math.random() * 10 * intensity;
+            let c = targetCtx;
+            let _x = x, _y = y, _w = w, _h = h, _i = intensity;
+            if (typeof targetCtx === 'number') {
+              c = ctx; _x = targetCtx; _y = x; _w = y; _h = w; _i = h;
+            } else if (!targetCtx) {
+              c = ctx;
+            }
+            if (!c || !canvas) return;
+            const offset = Math.random() * 10 * (_i || 1);
             try {
-              c.drawImage(canvas, x, y, w, h, x + offset, y, w, h);
+              c.drawImage(canvas, _x, _y, _w, _h, _x + offset, _y, _w, _h);
               if (Math.random() > 0.9) {
-                c.fillStyle = \`rgba(255, 0, 0, \${0.1 * intensity})\`;
-                c.fillRect(x, y, w, h);
+                c.fillStyle = \`rgba(255, 0, 0, \${0.1 * (_i || 1)})\`;
+                c.fillRect(_x, _y, _w, _h);
               }
             } catch(e) {}
           },
           neon: (targetCtx, color, blur = 10) => {
-            const c = targetCtx || ctx;
+            let c = targetCtx;
+            let col = color;
+            let b = blur;
+            if (typeof targetCtx === 'string') {
+              c = ctx; col = targetCtx; b = color;
+            } else if (!targetCtx) {
+              c = ctx;
+            }
             if (!c) return;
-            c.shadowColor = color;
-            c.shadowBlur = blur;
+            c.shadowColor = col;
+            c.shadowBlur = b;
           },
           scanline: (targetCtx, color = 'rgba(0, 242, 255, 0.05)', spacing = 4) => {
-            const c = targetCtx || ctx;
+            let c = targetCtx;
+            let col = color;
+            let s = spacing;
+            if (typeof targetCtx === 'string') {
+              c = ctx; col = targetCtx; s = color;
+            } else if (!targetCtx) {
+              c = ctx;
+            }
             if (!c || !canvas) return;
             try {
               c.save();
-              c.strokeStyle = color;
+              c.strokeStyle = col;
               c.lineWidth = 1;
-              for (let y = 0; y < canvas.height; y += spacing) {
+              for (let y = 0; y < canvas.height; y += (s || 4)) {
                 c.beginPath(); c.moveTo(0, y); c.lineTo(canvas.width, y); c.stroke();
               }
               c.restore();
             } catch(e) {}
           },
           noise: (targetCtx, intensity = 0.05) => {
-            const c = targetCtx || ctx;
+            let c = targetCtx;
+            let i = intensity;
+            if (typeof targetCtx === 'number') {
+              c = ctx; i = targetCtx;
+            } else if (!targetCtx) {
+              c = ctx;
+            }
             if (!c || !canvas) return;
             try {
               c.save();
-              c.fillStyle = 'rgba(255, 255, 255, ' + intensity + ')';
-              for (let i = 0; i < 1000; i++) {
+              c.fillStyle = 'rgba(255, 255, 255, ' + (i || 0.05) + ')';
+              for (let j = 0; j < 1000; j++) {
                 c.fillRect(Math.random() * canvas.width, Math.random() * canvas.height, 1, 1);
               }
               c.restore();
             } catch(e) {}
           },
           bloom: (targetCtx, intensity = 15, color = 'white') => {
-            const c = targetCtx || ctx;
+            let c = targetCtx;
+            let i = intensity;
+            let col = color;
+            if (typeof targetCtx === 'number') {
+              c = ctx; i = targetCtx; col = color;
+            } else if (!targetCtx) {
+              c = ctx;
+            }
             if (!c) return;
-            c.shadowBlur = intensity;
-            c.shadowColor = color;
+            c.shadowBlur = i || 15;
+            c.shadowColor = col || 'white';
             c.globalCompositeOperation = 'screen';
           },
           grid: (targetCtx, size = 50, color = 'rgba(255, 255, 255, 0.05)') => {
-            const c = targetCtx || ctx;
+            let c = targetCtx;
+            let s = size;
+            let col = color;
+            if (typeof targetCtx === 'number') {
+              c = ctx; s = targetCtx; col = size;
+            } else if (typeof targetCtx === 'string') {
+              c = ctx; s = 50; col = targetCtx;
+            } else if (!targetCtx) {
+              c = ctx;
+            }
             if (!c || !canvas) return;
             try {
-              c.strokeStyle = color;
+              c.strokeStyle = col || 'rgba(255, 255, 255, 0.05)';
               c.lineWidth = 0.5;
-              for (let x = 0; x <= canvas.width; x += size) {
+              const step = s || 50;
+              for (let x = 0; x <= canvas.width; x += step) {
                 c.beginPath(); c.moveTo(x, 0); c.lineTo(x, canvas.height); c.stroke();
               }
-              for (let y = 0; y <= canvas.height; y += size) {
+              for (let y = 0; y <= canvas.height; y += step) {
                 c.beginPath(); c.moveTo(0, y); c.lineTo(canvas.width, y); c.stroke();
               }
             } catch(e) {}
@@ -175,73 +222,165 @@ export const executeCode = async (
         render: (element) => {
           if (!canvas) return;
           const parent = canvas.parentElement;
-          const existing = parent.querySelector('#aura-spatial-mount');
-          if (existing) existing.remove();
+          if (!parent) return;
           
-          const mount = document.createElement('div');
-          mount.id = 'aura-spatial-mount';
-          mount.className = 'absolute inset-0 bg-black flex items-center justify-center p-8 overflow-auto no-scrollbar font-sans text-white';
-          parent.appendChild(mount);
-          
-          if (typeof element === 'string') mount.innerHTML = element;
-          else if (element instanceof HTMLElement) mount.appendChild(element);
-          
-          canvas.style.display = 'none';
-          registerCleanup(() => { mount.remove(); canvas.style.display = 'block'; });
+          try {
+            const containerId = 'aura-spatial-mount';
+            let mount = parent.querySelector('#' + containerId);
+            
+            if (!mount) {
+              mount = document.createElement('div');
+              mount.id = containerId;
+              mount.className = 'absolute inset-0 bg-black flex items-center justify-center p-8 overflow-auto no-scrollbar font-sans text-white z-50';
+              if (parent.isConnected || parent.parentNode) {
+                parent.appendChild(mount);
+              }
+            }
+            
+            mount.innerHTML = '';
+            if (typeof element === 'string') {
+              mount.innerHTML = element;
+            } else if (element instanceof HTMLElement) {
+              mount.appendChild(element);
+            }
+            
+            canvas.style.display = 'none';
+            
+            const cleanup = () => { 
+              try {
+                if (mount && mount.parentNode) mount.remove(); 
+              } catch(e) {}
+              try {
+                if (canvas && canvas.parentNode) canvas.style.display = 'block'; 
+              } catch(e) {}
+            };
+            registerCleanup(cleanup);
+          } catch (err) {
+            mockConsole.error("AURA.render failure:", err);
+          }
         },
         renderReact: (Component) => {
           if (!canvas || !ReactDOM) return;
           const parent = canvas.parentElement;
-          const mount = document.createElement('div');
-          mount.id = 'aura-react-mount';
-          mount.className = 'absolute inset-0 bg-black flex items-center justify-center p-8 overflow-auto no-scrollbar font-sans text-white';
-          parent.appendChild(mount);
-          const root = ReactDOM.createRoot(mount);
-          root.render(React.createElement(Component));
-          canvas.style.display = 'none';
-          registerCleanup(() => { root.unmount(); mount.remove(); canvas.style.display = 'block'; });
+          if (!parent) return;
+
+          try {
+            let mount = parent.querySelector('[id="aura-react-mount"]');
+            if (!mount) {
+              mount = document.createElement('div');
+              mount.id = 'aura-react-mount';
+              mount.className = 'absolute inset-0 bg-black flex items-center justify-center p-8 overflow-auto no-scrollbar font-sans text-white z-50';
+              if (parent.isConnected || parent.parentNode) {
+                parent.appendChild(mount);
+              }
+            } else {
+              mount.innerHTML = '';
+            }
+            
+            const root = ReactDOM.createRoot(mount);
+            root.render(React.createElement(Component));
+            canvas.style.display = 'none';
+            
+            registerCleanup(() => { 
+              try { root.unmount(); } catch(e) {}
+              try {
+                if (mount && mount.parentNode) mount.remove(); 
+              } catch(e) {}
+              try {
+                if (canvas && canvas.parentNode) canvas.style.display = 'block'; 
+              } catch(e) {}
+            });
+          } catch (err) {
+            mockConsole.error("AURA.renderReact failure:", err);
+          }
         },
         renderAngular: (componentClass, template) => {
           if (!canvas || !window.ng) return;
           const parent = canvas.parentElement;
-          const mount = document.createElement('aura-angular-mount');
-          mount.id = 'aura-angular-mount';
-          mount.className = 'absolute inset-0 bg-black flex items-center justify-center p-8 overflow-auto no-scrollbar font-sans text-white';
-          parent.appendChild(mount);
-          
-          const { Component, NgModule } = window.ng.core;
-          const { BrowserModule } = window.ng.platformBrowser;
-          const { platformBrowserDynamic } = window.ng.platformBrowserDynamic;
+          if (!parent) return;
 
-          const AppComp = Component({
-            selector: 'aura-angular-mount',
-            template: template || '<div>Angular Substrate Active</div>'
-          })(componentClass || class {});
+          try {
+            let mount = parent.querySelector('[id="aura-angular-mount"]');
+            if (mount) {
+              mount.innerHTML = '';
+            } else {
+              mount = document.createElement('div');
+              mount.id = 'aura-angular-mount';
+              mount.className = 'absolute inset-0 bg-black flex items-center justify-center p-8 overflow-auto no-scrollbar font-sans text-white z-50';
+              if (parent.isConnected || parent.parentNode) {
+                parent.appendChild(mount);
+              }
+            }
+            
+            const { Component, NgModule } = window.ng.core;
+            const { BrowserModule } = window.ng.platformBrowser;
+            const { platformBrowserDynamic } = window.ng.platformBrowserDynamic;
 
-          const AppModule = NgModule({
-            imports: [BrowserModule],
-            declarations: [AppComp],
-            bootstrap: [AppComp]
-          })(class {});
+            const AppComp = Component({
+              selector: 'aura-angular-mount',
+              template: template || '<div>Angular Substrate Active</div>'
+            })(componentClass || class {});
 
-          platformBrowserDynamic().bootstrapModule(AppModule).then(ref => {
-            registerCleanup(() => { ref.destroy(); mount.remove(); canvas.style.display = 'block'; });
-          });
-          canvas.style.display = 'none';
+            const AppModule = NgModule({
+              imports: [BrowserModule],
+              declarations: [AppComp],
+              bootstrap: [AppComp]
+            })(class {});
+
+            platformBrowserDynamic().bootstrapModule(AppModule).then(ref => {
+              registerCleanup(() => { 
+                try { ref.destroy(); } catch(e) {}
+                try {
+                  if (mount && mount.parentNode) mount.remove(); 
+                } catch(e) {}
+                try {
+                  if (canvas && canvas.parentNode) canvas.style.display = 'block'; 
+                } catch(e) {}
+              });
+            });
+            canvas.style.display = 'none';
+          } catch (err) {
+            mockConsole.error("AURA.renderAngular failure:", err);
+          }
         },
         render3D: (setupFn) => {
            if (!canvas || !THREE) return;
            
+           let targetCanvas = canvas;
+           
+           // If the canvas already has a 2D context, we must replace it to get a WebGL context
+           if (cachedCtx || canvas.getContext('2d')) {
+             const parent = canvas.parentElement;
+             if (parent && canvas.parentNode === parent) {
+               const newCanvas = document.createElement('canvas');
+               newCanvas.width = canvas.width;
+               newCanvas.height = canvas.height;
+               newCanvas.className = canvas.className;
+               newCanvas.style.cssText = canvas.style.cssText;
+               try {
+                 if (parent.contains(canvas)) {
+                   parent.replaceChild(newCanvas, canvas);
+                   targetCanvas = newCanvas;
+                 }
+               } catch (e) {
+                 mockConsole.error("Canvas replacement failed:", e);
+                 targetCanvas = canvas;
+               }
+               // Update the local reference for the rest of the execution
+               // Note: This only affects the 3D renderer's target
+             }
+           }
+
            try {
              const scene = new THREE.Scene();
-             const camera = new THREE.PerspectiveCamera(75, canvas.width / canvas.height, 0.1, 1000);
+             const camera = new THREE.PerspectiveCamera(75, targetCanvas.width / targetCanvas.height, 0.1, 1000);
              const renderer = new THREE.WebGLRenderer({ 
-               canvas, 
+               canvas: targetCanvas, 
                antialias: true, 
                alpha: true,
                preserveDrawingBuffer: true
              });
-             renderer.setSize(canvas.width, canvas.height, false);
+             renderer.setSize(targetCanvas.width, targetCanvas.height, false);
              setupFn(scene, camera, THREE);
              let frameId;
              const animate = () => {
@@ -253,13 +392,13 @@ export const executeCode = async (
                cancelAnimationFrame(frameId);
                renderer.dispose();
                renderer.forceContextLoss();
+               // If we replaced the canvas, we might want to put the old one back or just let it be
+               // For now, replacing it is enough to fix the immediate error.
              });
            } catch (e) {
              mockConsole.error("WebGL Initialization Error:", e);
-             // If WebGL fails, it might be because a 2D context is already active.
-             // We'll log a more helpful message.
              if (e.message?.includes('already has a context')) {
-                mockConsole.error("Tip: A 2D context is already active on this canvas. Re-run the substrate to reset the canvas for 3D.");
+                mockConsole.error("Tip: A 2D context is already active. The AURA.render3D utility attempted to replace the canvas, but failed.");
              }
            }
         },
@@ -270,11 +409,11 @@ export const executeCode = async (
             if(!active) return;
             try {
               fn(time, { telemetry: currentTelemetry }); 
+              frameId = requestAnimationFrame(loop); 
             } catch (e) {
               mockConsole.error("Animation Loop Error:", e);
               active = false;
             }
-            frameId = requestAnimationFrame(loop); 
           };
           frameId = requestAnimationFrame(loop);
           registerCleanup(() => { active = false; cancelAnimationFrame(frameId); });
@@ -297,7 +436,8 @@ export const executeCode = async (
             } catch (e) {}
           }
         },
-        log: (...args) => mockConsole.log(...args)
+        log: (...args) => mockConsole.log(...args),
+        onCleanup: (fn) => registerCleanup(fn)
       };
 
       return (async () => {

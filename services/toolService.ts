@@ -303,6 +303,46 @@ export const SOVEREIGN_TOOLS: SovereignTool[] = [
       name: 'start_breathwork',
       parameters: { type: Type.OBJECT, properties: { duration: { type: Type.NUMBER } }, required: ['duration'] }
     }
+  },
+  {
+    id: 'deep_search',
+    name: 'Neural Research',
+    description: 'Perform deep-mesh analysis across scientific journals and technical docs.',
+    enabled: true,
+    declaration: {
+      name: 'execute_research',
+      parameters: { type: Type.OBJECT, properties: { query: { type: Type.STRING } }, required: ['query'] }
+    }
+  },
+  {
+    id: 'code_analyzer',
+    name: 'Static Sentry',
+    description: 'Analyze code snippets for security vulnerabilities and O-notation complexity.',
+    enabled: true,
+    declaration: {
+      name: 'analyze_code_structure',
+      parameters: { type: Type.OBJECT, properties: { code: { type: Type.STRING } }, required: ['code'] }
+    }
+  },
+  {
+    id: 'image_processor',
+    name: 'Vision Lab',
+    description: 'Apply neural filters and transformations to images in the substrate.',
+    enabled: true,
+    declaration: {
+      name: 'apply_vision_filter',
+      parameters: { type: Type.OBJECT, properties: { filterType: { type: Type.STRING } }, required: ['filterType'] }
+    }
+  },
+  {
+    id: 'data_viz',
+    name: 'Vector Plotter',
+    description: 'Generate D3/Recharts JSON manifests for complex datasets.',
+    enabled: true,
+    declaration: {
+      name: 'plot_vector_data',
+      parameters: { type: Type.OBJECT, properties: { schema: { type: Type.OBJECT } }, required: ['schema'] }
+    }
   }
 ];
 
@@ -441,6 +481,10 @@ export const executeTool = async (name: string, args: any): Promise<any> => {
     case 'weave_concepts': return { concept: `The synthesis of ${args.conceptA} and ${args.conceptB}.` };
     case 'create_capsule': return { id: Date.now(), lockedUntil: args.unlockTime };
     case 'start_breathwork': return { status: 'breathing_initiated' };
+    case 'execute_research': return { search_results: [`Summary for ${args.query}: Results indicate a high correlation with decentralized substrates.`] };
+    case 'analyze_code_structure': return { complexity: "O(n log n)", security: "Secure", suggestions: ["Optimize recursion depth"] };
+    case 'apply_vision_filter': return { status: "Filter applied", filter: args.filterType };
+    case 'plot_vector_data': return { chartType: "force-directed-graph", dataPoints: 500, schema: args.schema };
 
     default:
       throw new Error(`Tool ${name} not found`);

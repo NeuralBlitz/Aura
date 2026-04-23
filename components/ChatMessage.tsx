@@ -1,13 +1,18 @@
 
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Message } from '../types';
-import { Copy, BrainCircuit, Globe, Sparkles, ArrowUp, GitFork, BookMarked, History, Volume2, VolumeX, RefreshCw } from 'lucide-react';
+import { 
+  Copy, BrainCircuit, Globe, Sparkles, ArrowUp, GitFork, 
+  BookMarked, History, Volume2, VolumeX, RefreshCw, Check
+} from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
 import { WidgetDispatcher } from './widgets/GenerativeWidgets';
 import ThinkingXRay from './ThinkingXRay';
+import { haptic, HapticPattern } from '../services/hapticService';
 
 interface ChatMessageProps {
   message: Message;
@@ -21,6 +26,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, onRetry, onO
   const isUser = message.role === 'user';
   const isStreaming = message.isStreaming;
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const toggleSpeech = () => {
     if (isSpeaking) {
@@ -34,14 +40,30 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, onRetry, onO
     }
   };
 
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(message.text);
+    setCopied(true);
+    haptic.trigger(HapticPattern.SUCCESS);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
-    <div className={`w-full px-6 py-8 animate-slide-up flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
-      <div className={`max-w-[92%] sm:max-w-[85%] ${isUser ? 'message-user p-5 px-7 rounded-[2.2rem] rounded-tr-lg' : 'w-full'}`}>
+    <motion.div 
+      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      className={`w-full px-6 py-8 flex flex-col ${isUser ? 'items-end' : 'items-start'}`}
+    >
+      <div className={`max-w-[92%] sm:max-w-[85%] ${isUser ? 'message-user p-5 px-7 rounded-[2.2rem] rounded-tr-lg shadow-xl' : 'w-full'}`}>
         
         {message.imageUrl && (
-          <div className="mb-6 rounded-[2rem] overflow-hidden border border-white/10 shadow-2xl max-w-sm">
-            <img src={message.imageUrl} alt="Input" className="w-full h-auto" />
-          </div>
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="mb-6 rounded-[2rem] overflow-hidden border border-white/10 shadow-2xl max-w-sm"
+          >
+            <img src={message.imageUrl} alt="Input" className="w-full h-auto" referrerPolicy="no-referrer" />
+          </motion.div>
         )}
 
         {!isUser && (
@@ -65,17 +87,18 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, onRetry, onO
                  {isSpeaking ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
               </button>
               <button 
+                onClick={copyToClipboard}
+                className={`p-2 rounded-xl transition-all active:scale-90 ${copied ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/5 text-neutral-500 hover:text-emerald-400'}`}
+                title="Copy to Clipboard"
+              >
+                 {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+              </button>
+              <button 
                 onClick={() => onFork?.(message.id)}
                 className="p-2 bg-white/5 rounded-xl text-neutral-500 hover:text-blue-400 transition-all active:scale-90"
                 title="Fork Conversation"
               >
                  <GitFork className="w-3.5 h-3.5" />
-              </button>
-              <button 
-                className="p-2 bg-white/5 rounded-xl text-neutral-500 hover:text-emerald-400 transition-all active:scale-90"
-                title="Archive to Scriptorium"
-              >
-                 <BookMarked className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
@@ -125,11 +148,20 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, onRetry, onO
                 code: ({node, inline, ...props}: any) => (
                   inline 
                     ? <code className="bg-white/10 px-1.5 py-0.5 rounded text-blue-400 font-mono text-[11px]" {...props} />
-                    : <div className="bg-black/40 border border-white/10 p-6 rounded-[2rem] my-6 overflow-x-auto shadow-inner">
+                    : <div className="bg-black/40 border border-white/10 p-6 rounded-[2rem] my-6 overflow-x-auto shadow-inner relative group">
+                        <button 
+                          onClick={() => {
+                            navigator.clipboard.writeText(String(props.children));
+                            haptic.trigger(HapticPattern.SUCCESS);
+                          }}
+                          className="absolute top-4 right-4 p-2 bg-white/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/10"
+                        >
+                          <Copy className="w-3.5 h-3.5 text-neutral-500" />
+                        </button>
                         <code className="text-blue-200 font-mono text-[12px] leading-relaxed" {...props} />
                       </div>
                 ),
-                img: ({node, ...props}: any) => <img {...props} className="rounded-[2.5rem] border border-white/10 my-8 shadow-2xl" />,
+                img: ({node, ...props}: any) => <img {...props} className="rounded-[2.5rem] border border-white/10 my-8 shadow-2xl" referrerPolicy="no-referrer" />,
                 p: ({node, ...props}: any) => <p className="mb-6 last:mb-0" {...props} />
               }}
             >
@@ -187,7 +219,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLast, onRetry, onO
           </div>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 };
 

@@ -14,6 +14,9 @@
     "@tailwindcss/vite": "^4.2.2",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/three": "^0.183.1",
+    "@types/uuid": "^10.0.0",
+    "axios": "^1.15.2",
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "firebase": "^12.11.0",
@@ -27,8 +30,12 @@
     "rehype-katex": "^7.0.1",
     "rehype-raw": "^7.0.0",
     "remark-math": "^6.0.0",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3",
     "tailwindcss": "^4.2.2",
-    "tsx": "^4.21.0"
+    "three": "^0.183.2",
+    "tsx": "^4.21.0",
+    "uuid": "^14.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

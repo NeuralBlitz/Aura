@@ -16,11 +16,18 @@ class HapticService {
   }
 
   public trigger(pattern: number | number[]) {
-    if (!this.enabled) return;
+    if (!this.enabled || !pattern) return;
     try {
-      navigator.vibrate(pattern);
+      // Ensure pattern is valid for the vibrate API (must be number or array of numbers)
+      const validPattern = Array.isArray(pattern) 
+        ? (pattern.length > 0 ? pattern : null)
+        : pattern;
+      
+      if (validPattern !== null) {
+        navigator.vibrate(validPattern as any);
+      }
     } catch (e) {
-      console.warn("Haptic feedback suppressed by browser/system.");
+      console.warn("Haptic feedback suppressed by browser/system:", e);
     }
   }
 

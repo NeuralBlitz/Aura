@@ -1,5 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   Terminal, Play, RotateCcw, Sparkles, Zap, Cpu, 
   Settings2, Activity, Check, ChevronRight, Layout, 
@@ -18,6 +19,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import ModuleLayout from '../ui/ModuleLayout';
 import { handleFirestoreError, OperationType } from '../../lib/firestore-utils';
+import { haptic, HapticPattern } from '../../services/hapticService';
 
 const MemoizedConsole = React.memo(ForgeConsole);
 
@@ -422,7 +424,7 @@ const ForgeView: React.FC<ForgeViewProps> = ({ initialCode, onClearInjected, onC
   };
 
   const safeGenerateContent = async (params: any, modelIndex = 0) => {
-    const models = ['gemini-3.1-pro-preview', 'gemini-3-flash-preview', 'gemini-2.5-flash'];
+    const models = ['gemini-3.1-pro-preview', 'gemini-3-flash-preview', 'gemini-flash-latest'];
     if (modelIndex >= models.length) throw new Error('All neural models exhausted.');
 
     try {
@@ -492,6 +494,7 @@ const ForgeView: React.FC<ForgeViewProps> = ({ initialCode, onClearInjected, onC
       - AURA.onInput(type, ({x, y}) => { ... }): Handles 'mousedown', 'mousemove', 'touchstart', etc.
       - AURA.vibrate(pattern): Triggers haptics.
       - AURA.log(...args): Logs to the Neural Log.
+      - AURA.onCleanup(fn): Registers a cleanup function.
       - AURA.react: Access to React (useState, useEffect, etc).
       - AURA.html: Access to htm for React (use as html\`...\`).
       - AURA.angular: Access to Angular core.
@@ -499,6 +502,7 @@ const ForgeView: React.FC<ForgeViewProps> = ({ initialCode, onClearInjected, onC
           lerp(a,b,t), 
           clamp(v,min,max), 
           random(min,max), 
+          dist(x1,y1,x2,y2),
           hsl(h,s,l), 
           rgba(r,g,b,a),
           pulse(time, freq, amp),
@@ -537,7 +541,18 @@ const ForgeView: React.FC<ForgeViewProps> = ({ initialCode, onClearInjected, onC
         config: { responseMimeType: 'application/json' }
       });
 
-      const planData = JSON.parse(planResponse.text);
+      const extractJson = (text: string) => {
+        try {
+          const jsonMatch = text.match(/\{[\s\S]*\}/);
+          if (jsonMatch) return JSON.parse(jsonMatch[0]);
+          return JSON.parse(text);
+        } catch (e) {
+          console.error('Failed to parse JSON:', text);
+          throw new Error('Neural Parsing Error: Invalid JSON response from model.');
+        }
+      };
+
+      const planData = extractJson(planResponse.text);
       setPlan(planData.plan.map((p: any) => ({ ...p, status: 'pending' })));
 
       // Phase 2: Implementation Loop
@@ -561,6 +576,7 @@ const ForgeView: React.FC<ForgeViewProps> = ({ initialCode, onClearInjected, onC
           
           TASK: Write the code for this phase. Integrate it seamlessly with the existing code.
           If this is the final phase, ensure AURA.animate or AURA.render is fully implemented.
+          Return the FULL updated code for the entire substrate.
           Return ONLY the code. No markdown, no explanations.`,
         });
 
@@ -570,11 +586,11 @@ const ForgeView: React.FC<ForgeViewProps> = ({ initialCode, onClearInjected, onC
         setMessages(prev => prev.map(m => m.id === agentId ? { ...m, content: `Reviewing Phase ${i+1} for logical consistency...`, status: 'thinking' } : m));
         const reviewResponse = await safeGenerateContent({
           contents: `
-          Review this code segment for bugs, syntax errors, or API misuse:
+          Review this code for bugs, syntax errors, or API misuse:
           ${newCodeSegment}
           
-          If there are issues, provide the corrected code. 
-          If it is perfect, return the original code.
+          If there are issues, provide the corrected FULL code. 
+          If it is perfect, return the original FULL code.
           Return ONLY the code.`,
         });
 
@@ -702,64 +718,93 @@ const ForgeView: React.FC<ForgeViewProps> = ({ initialCode, onClearInjected, onC
         </div>
 
         {/* Plan Section */}
-        {plan.length > 0 && (
-          <div className="p-6 border-b border-white/10 bg-blue-600/5">
-            <div className="flex items-center gap-2 mb-4">
-              <ListChecks className="w-4 h-4 text-blue-400" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Mission Parameters</span>
-            </div>
-            <div className="space-y-3">
-              {plan.map(step => (
-                <div key={step.id} className="flex items-center gap-3 group">
-                  <div className={`w-1.5 h-1.5 rounded-full transition-all ${
-                    step.status === 'completed' ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 
-                    step.status === 'active' ? 'bg-blue-500 animate-pulse shadow-[0_0_10px_rgba(59,130,246,0.5)]' : 
-                    'bg-neutral-800'
-                  }`} />
-                  <span className={`text-[10px] font-bold transition-colors ${
-                    step.status === 'completed' ? 'text-neutral-500 line-through' : 
-                    step.status === 'active' ? 'text-blue-400' : 
-                    'text-neutral-600'
-                  }`}>
-                    {step.title}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        <AnimatePresence>
+          {plan.length > 0 && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="p-6 border-b border-white/10 bg-blue-600/5 overflow-hidden"
+            >
+              <div className="flex items-center gap-2 mb-4">
+                <ListChecks className="w-4 h-4 text-blue-400" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Mission Parameters</span>
+              </div>
+              <div className="space-y-3">
+                {plan.map((step, i) => (
+                  <motion.div 
+                    key={step.id} 
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.1 }}
+                    className="flex items-center gap-3 group"
+                  >
+                    <div className={`w-1.5 h-1.5 rounded-full transition-all ${
+                      step.status === 'completed' ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 
+                      step.status === 'active' ? 'bg-blue-500 animate-pulse shadow-[0_0_10px_rgba(59,130,246,0.5)]' : 
+                      'bg-neutral-800'
+                    }`} />
+                    <span className={`text-[10px] font-bold transition-colors ${
+                      step.status === 'completed' ? 'text-neutral-500 line-through' : 
+                      step.status === 'active' ? 'text-blue-400' : 
+                      'text-neutral-600'
+                    }`}>
+                      {step.title}
+                    </span>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Chat History */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6 scroll-smooth">
-          {messages.length === 0 && (
-            <div className="h-full flex flex-col items-center justify-center text-center opacity-30">
-              <Sparkles className="w-12 h-12 mb-4" />
-              <p className="text-[10px] font-black uppercase tracking-[0.3em]">Standby for instructions</p>
-            </div>
-          )}
-          {messages.map((msg) => (
-            <div key={msg.id} className={`flex flex-col gap-2 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-              <div className={`flex items-center gap-2 mb-1 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                <div className={`p-1.5 rounded-lg bg-neutral-900 border border-white/10 ${msg.role === 'agent' ? 'text-blue-500' : 'text-emerald-500'}`}>
-                  {msg.role === 'agent' ? <Bot className="w-3 h-3" /> : <User className="w-3 h-3" />}
-                </div>
-                <span className="text-[9px] font-black uppercase tracking-widest text-neutral-600">
-                  {msg.role === 'agent' ? 'Aura Codex' : 'Architect'}
-                </span>
-              </div>
-              <div className={`max-w-[90%] p-4 rounded-2xl text-[11px] leading-relaxed ${
-                msg.role === 'user' ? 'bg-blue-600/10 border border-blue-500/20 text-blue-100' : 'bg-white/5 border border-white/5 text-neutral-300'
-              }`}>
-                <ReactMarkdown>{msg.content}</ReactMarkdown>
-                {msg.status && msg.status !== 'complete' && (
-                  <div className="mt-3 flex items-center gap-2 text-[9px] font-black text-blue-500 uppercase tracking-widest">
-                    <div className="w-1 h-1 bg-blue-500 rounded-full animate-ping" />
-                    {msg.status}...
+          <AnimatePresence initial={false}>
+            {messages.length === 0 && (
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 0.3 }}
+                className="h-full flex flex-col items-center justify-center text-center"
+              >
+                <Sparkles className="w-12 h-12 mb-4" />
+                <p className="text-[10px] font-black uppercase tracking-[0.3em]">Standby for instructions</p>
+              </motion.div>
+            )}
+            {messages.map((msg, i) => (
+              <motion.div 
+                key={msg.id} 
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.3 }}
+                className={`flex flex-col gap-2 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
+              >
+                <div className={`flex items-center gap-2 mb-1 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                  <div className={`p-1.5 rounded-lg bg-neutral-900 border border-white/10 ${msg.role === 'agent' ? 'text-blue-500' : 'text-emerald-500'}`}>
+                    {msg.role === 'agent' ? <Bot className="w-3 h-3" /> : <User className="w-3 h-3" />}
                   </div>
-                )}
-              </div>
-            </div>
-          ))}
+                  <span className="text-[9px] font-black uppercase tracking-widest text-neutral-600">
+                    {msg.role === 'agent' ? 'Aura Codex' : 'Architect'}
+                  </span>
+                </div>
+                <div className={`max-w-[90%] p-4 rounded-2xl text-[11px] leading-relaxed shadow-lg ${
+                  msg.role === 'user' ? 'bg-blue-600/10 border border-blue-500/20 text-blue-100' : 'bg-white/5 border border-white/5 text-neutral-300'
+                }`}>
+                  <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  {msg.status && msg.status !== 'complete' && (
+                    <div className="mt-3 flex items-center gap-2 text-[9px] font-black text-blue-500 uppercase tracking-widest">
+                      <motion.div 
+                        animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }}
+                        transition={{ repeat: Infinity, duration: 1.5 }}
+                        className="w-1 h-1 bg-blue-500 rounded-full" 
+                      />
+                      {msg.status}...
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </div>
 
         {/* Input Area */}

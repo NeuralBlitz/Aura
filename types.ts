@@ -141,7 +141,7 @@ export interface MemoryRetrieval {
 export type Theme = 'light' | 'dark' | 'ghost' | 'zen' | 'oled';
 export type MorphingState = 'standby' | 'reasoning' | 'fabrication' | 'critical' | 'creative' | 'ghost';
 
-export type Tab = 'home' | 'nexus' | 'marketplace' | 'projects' | 'notes' | 'forge' | 'search' | 'news' | 'forums' | 'scriptorium' | 'changelog' | 'focus' | 'vault' | 'network' | 'utility' | 'translate' | 'health' | 'library' | 'market' | 'sonic' | 'weather' | 'calendar' | 'browser' | 'webhook' | 'dreamstream' | 'cipher' | 'biolink' | 'echo' | 'signal' | 'void' | 'style' | 'loom' | 'capsule' | 'zenith' | 'live' | 'agent';
+export type Tab = 'home' | 'nexus' | 'marketplace' | 'projects' | 'notes' | 'forge' | 'search' | 'news' | 'forums' | 'scriptorium' | 'changelog' | 'focus' | 'vault' | 'network' | 'utility' | 'translate' | 'health' | 'library' | 'market' | 'sonic' | 'weather' | 'calendar' | 'browser' | 'webhook' | 'dreamstream' | 'cipher' | 'biolink' | 'echo' | 'signal' | 'void' | 'style' | 'loom' | 'capsule' | 'zenith' | 'live' | 'agent' | 'canvas';
 
 export type QuickActionType = 'aura-live' | 'nearby-search' | 'create-image' | 'analyze-data' | 'settings';
 
@@ -157,6 +157,7 @@ export interface UserPreferences {
   defaultModel: ModelType;
   theme: Theme;
   accentColor: string;
+  fontFamily?: 'sans' | 'mono' | 'serif';
   installedModules: string[];
   isVaultEnabled: boolean;
   autoOpenArtifacts: boolean;
@@ -198,4 +199,27 @@ export interface ForgeParam {
   max: number;
   value: number;
   line: number;
+}
+
+export interface AutomatedAgent {
+  id: string;
+  name: string;
+  description: string;
+  avatarUrl: string;
+  status: 'active' | 'idle' | 'stopped';
+  triggerType: 'webhook' | 'schedule' | 'manual' | 'rpc';
+  triggerConfig: any;
+  capabilities: string[];
+  lastRun?: number;
+  runCount: number;
+  userId: string;
+}
+
+export interface AgentSession {
+  id: string;
+  agentId: string;
+  status: 'running' | 'completed' | 'failed';
+  logs: string[];
+  startTime: number;
+  endTime?: number;
 }

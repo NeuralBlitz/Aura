@@ -1,11 +1,16 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageSquare, X, Send, Sparkles, Minus, Maximize2, Shrink } from 'lucide-react';
-import { Message, ModelType } from '../types';
+import { MessageSquare, X, Send, Sparkles, Minus, Maximize2, Shrink, Compass } from 'lucide-react';
+import { Message, ModelType, Tab } from '../types';
 import { sendMessageStreamToGemini } from '../services/geminiService';
 import ReactMarkdown from 'react-markdown';
 
-const FloatingChat: React.FC = () => {
+interface FloatingChatProps {
+  onNavigate: (tab: Tab) => void;
+  currentTab: Tab;
+}
+
+const FloatingChat: React.FC<FloatingChatProps> = ({ onNavigate, currentTab }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -31,13 +36,29 @@ const FloatingChat: React.FC = () => {
     setMessages(prev => [...prev, { id: assistantId, role: 'model', text: '', timestamp: new Date(), isStreaming: true }]);
 
     try {
-      const stream = sendMessageStreamToGemini([...messages, userMsg], input, ModelType.GEMINI_FLASH);
+      // System prompt to guide the model on navigation capabilities
+      const systemPrompt = `You are Aura, the OS assistant. You can navigate the OS.
+      If the user asks to go to a specific app or page, call the navigation function.
+      Available tabs: nexus, home, news, translate, health, forums, projects, notes, scriptorium, changelog, focus, network, utility, market, sonic, weather, calendar, browser, webhook, dreamstream, cipher, void, capsule, biolink, echo, zenith, signal, style, loom, live, search, forge, marketplace.
+      Current tab: ${currentTab}.
+      To navigate, respond with "NAVIGATE:<tab_name>".`;
+
+      const stream = sendMessageStreamToGemini([...messages, userMsg], systemPrompt + "\n\nUser: " + input, ModelType.GEMINI_FLASH);
+      let fullText = '';
       for await (const chunk of stream) {
+        fullText += chunk.text;
         setMessages(prev => prev.map(m => m.id === assistantId ? { 
           ...m, 
-          text: chunk.text, 
+          text: fullText, 
         } : m));
       }
+      
+      // Check for navigation command
+      if (fullText.includes('NAVIGATE:')) {
+        const tab = fullText.split('NAVIGATE:')[1].trim().split(' ')[0].toLowerCase() as Tab;
+        onNavigate(tab);
+      }
+
       setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, isStreaming: false } : m));
     } catch (e: any) {
       setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, text: e.message, isError: true, isStreaming: false } : m));

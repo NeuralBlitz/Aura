@@ -89,7 +89,7 @@ const StartDashboard: React.FC<StartDashboardProps> = ({ onAction, userParams })
             {[
               { label: 'Deep Search', icon: Search, color: 'text-blue-400', model: ModelType.GEMINI_PRO, prompt: 'Logical analysis of...', desc: 'Research Link' },
               { label: 'Imagine Engine', icon: ImageIcon, color: 'text-pink-400', model: ModelType.GEMINI_IMAGE, prompt: 'Cinematic render of...', desc: 'Art Pipeline' },
-              { label: 'Neural Art', icon: Activity, color: 'text-emerald-400', model: ModelType.GEMINI_INTELLIGENCE, prompt: 'Neural status of...', desc: 'State Scan' },
+              { label: 'Neural Mesh', icon: Network, color: 'text-emerald-400', actionType: 'canvas', desc: 'Control Plane' },
               { label: 'Aura Live', icon: Mic, color: 'text-purple-400', actionType: 'live', desc: 'Voice Interface' },
             ].map((action, i) => (
               <button

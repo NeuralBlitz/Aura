@@ -6,9 +6,9 @@ import {
   Plus, MoreHorizontal, History, Check, Globe, MapPin, Search,
   Cpu, Workflow, Sliders, Activity, Terminal, Calendar, Music, StickyNote, Lock, Link,
   TrendingUp, ShieldAlert, Fingerprint, Eye, EyeOff, Edit3, BrainCircuit, ArrowUpRight,
-  CreditCard, LayoutGrid
+  CreditCard, LayoutGrid, Laugh, MessageSquare, BookOpen
 } from 'lucide-react';
-import { UserProfile, UserPreferences, Message, VaultStatus, Tab } from '../types';
+import { UserProfile, UserPreferences, Message, VaultStatus, Tab, ModelType } from '../types';
 import { SOVEREIGN_TOOLS } from '../services/toolService';
 import { vaultService } from '../services/vaultService';
 import MemoryMap from './MemoryMap';
@@ -39,6 +39,41 @@ const AVATARS = [
   'https://api.dicebear.com/7.x/bottts/svg?seed=Atlas',
   'https://api.dicebear.com/7.x/bottts/svg?seed=Crono',
   'https://api.dicebear.com/7.x/bottts/svg?seed=Veda',
+];
+
+const PERSONALITIES = [
+  {
+    id: ModelType.FRIENDLY_ASSISTANT,
+    name: 'Friendly',
+    description: 'Warm, supportive, and conversational. Perfect for daily tasks and casual chats.',
+    icon: MessageSquare,
+    color: 'text-rose-400',
+    bg: 'bg-rose-400/10'
+  },
+  {
+    id: ModelType.PROFESSIONAL_TONE,
+    name: 'Professional',
+    description: 'Concise, formal, and objective. Ideal for business, research, and technical work.',
+    icon: BookOpen,
+    color: 'text-slate-400',
+    bg: 'bg-slate-400/10'
+  },
+  {
+    id: ModelType.WITTY_COMPANION,
+    name: 'Witty',
+    description: 'Clever, sharp, and witty. Great for creative brainstorming and entertainment.',
+    icon: Sparkles,
+    color: 'text-yellow-400',
+    bg: 'bg-yellow-400/10'
+  },
+  {
+    id: ModelType.HUMOROUS_COMPANION,
+    name: 'Humorous',
+    description: 'A playful companion that loves jokes, puns, and a lighthearted tone.',
+    icon: Laugh,
+    color: 'text-orange-400',
+    bg: 'bg-orange-400/10'
+  }
 ];
 
 const ProfilePanel: React.FC<ProfilePanelProps> = ({ 
@@ -467,12 +502,42 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({
 
               <section className="space-y-4">
                 <div className="flex items-center gap-3 px-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-400">Neural Personality</h3>
+                </div>
+                <div className="grid grid-cols-1 gap-3">
+                  {PERSONALITIES.map((personality) => {
+                    const isSelected = preferences.defaultModel === personality.id;
+                    return (
+                      <button
+                        key={personality.id}
+                        onClick={() => onUpdatePreferences({ defaultModel: personality.id })}
+                        className={`flex items-start gap-5 p-5 rounded-[2rem] border transition-all text-left ${isSelected ? 'bg-blue-900/10 border-blue-500/30 shadow-lg' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}
+                      >
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 bg-black border border-white/10 shadow-lg ${isSelected ? personality.color : 'text-neutral-600'}`}>
+                          <personality.icon className="w-5 h-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-center mb-1">
+                            <h4 className={`text-sm font-black tracking-tight ${isSelected ? 'text-white' : 'text-neutral-400'}`}>{personality.name}</h4>
+                            {isSelected && <Check className="w-4 h-4 text-blue-500" />}
+                          </div>
+                          <p className="text-[10px] text-neutral-500 font-medium leading-relaxed">{personality.description}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+
+              <section className="space-y-4">
+                <div className="flex items-center gap-3 px-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
                   <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-400">Environment</h3>
                 </div>
                 <div className="grid grid-cols-1 gap-3">
                    {[
-                     { label: 'OLED Pure Black', desc: 'True substrate black for efficiency', value: preferences.theme === 'dark', action: () => onUpdatePreferences({ theme: preferences.theme === 'dark' ? 'light' : 'dark' }) },
+                     { label: 'Light Mode', desc: 'Switch to light theme', value: preferences.theme === 'light', action: () => onUpdatePreferences({ theme: preferences.theme === 'light' ? 'dark' : 'light' }) },
                      { label: 'Predictive Forge', desc: 'Auto-launch artifacts on code output', value: preferences.autoOpenArtifacts, action: () => onUpdatePreferences({ autoOpenArtifacts: !preferences.autoOpenArtifacts }) },
                      { label: 'Neural Alerts', desc: 'Alert for model state updates', value: preferences.notificationsEnabled, action: () => onUpdatePreferences({ notificationsEnabled: !preferences.notificationsEnabled }) },
                    ].map((opt, i) => (
@@ -489,6 +554,37 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({
                         </button>
                      </div>
                    ))}
+                </div>
+                
+                <div className="p-6 rounded-[2rem] bg-white/5 border border-white/5 mt-4">
+                  <span className="text-sm font-black text-white block mb-4">Typography</span>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(['sans', 'mono', 'serif'] as const).map(font => (
+                      <button
+                        key={font}
+                        onClick={() => onUpdatePreferences({ fontFamily: font })}
+                        className={`py-2 rounded-xl text-xs font-bold capitalize transition-all border ${preferences.fontFamily === font || (!preferences.fontFamily && font === 'sans') ? 'bg-blue-600 border-blue-500 text-white' : 'bg-black/40 border-white/10 text-neutral-400 hover:text-white'}`}
+                      >
+                        {font}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="p-6 rounded-[2rem] bg-white/5 border border-white/5 mt-4">
+                  <span className="text-sm font-black text-white block mb-4">Accent Color</span>
+                  <div className="grid grid-cols-5 gap-2">
+                    {(['blue', 'purple', 'emerald', 'rose', 'amber'] as const).map(color => (
+                      <button
+                        key={color}
+                        onClick={() => onUpdatePreferences({ accentColor: color })}
+                        className={`w-10 h-10 rounded-full transition-all border-2 flex items-center justify-center ${preferences.accentColor === color || (!preferences.accentColor && color === 'blue') ? 'border-white scale-110' : 'border-transparent hover:scale-105'}`}
+                        style={{ backgroundColor: `var(--color-${color}-500, ${color === 'blue' ? '#3b82f6' : color === 'purple' ? '#a855f7' : color === 'emerald' ? '#10b981' : color === 'rose' ? '#f43f5e' : '#f59e0b'})` }}
+                      >
+                        {preferences.accentColor === color && <Check className="w-4 h-4 text-white" />}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </section>
 

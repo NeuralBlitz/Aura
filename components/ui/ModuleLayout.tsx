@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Maximize2, Minus, X, Activity, Cpu } from 'lucide-react';
+import { Maximize2, Minus, X, Activity, Cpu, ArrowLeft } from 'lucide-react';
 
 interface ModuleLayoutProps {
   title: string;
@@ -95,14 +95,12 @@ const ModuleLayout: React.FC<ModuleLayoutProps> = ({
           >
             <Maximize2 className="w-4 h-4" />
           </button>
-          {onClose && (
-            <button 
-              onClick={onClose}
-              className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-red-500/20 text-neutral-500 hover:text-red-400 transition-colors ml-1"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
+          <button 
+            onClick={onClose || (() => window.history.back())}
+            className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/10 text-neutral-500 hover:text-white transition-colors ml-1"
+          >
+            {onClose ? <X className="w-4 h-4" /> : <ArrowLeft className="w-4 h-4" />}
+          </button>
         </div>
       </div>
 
